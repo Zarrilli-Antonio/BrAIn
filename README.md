@@ -1,0 +1,138 @@
+# BrAIn
+
+BrAIn lets an AI coding assistant explore and edit your project without reading whole files just to find one function, and gives it a place to keep documentation, notes, and a style guide that stick around between sessions. A browser-based explorer lets a human look at the same project — and see exactly what the AI has been doing.
+
+It runs entirely on your own machine. No cloud service, no account, no cost beyond what's already installed.
+
+## What it actually gives you
+
+- **Cheaper, more precise AI exploration.** Instead of reading a whole file to find one function, the AI can list a file's definitions, jump straight to the lines it needs, search with a few lines of context, or find every real usage of a symbol — not just text that happens to match its name.
+- **Safer edits.** Small changes go through a find-and-replace instead of resending the whole file. Creating a file won't silently overwrite one that's already there. Every write is confirmed to be searchable immediately, not "eventually."
+- **A shared memory.** Two things the AI is told to check before starting work: a **memory** page (notes you want it to always keep in mind) and a **style guide** (design rules to follow for anything visual). Both are just files it can read and write, and they outlive any single conversation — the next session, or a different AI tool entirely, picks up where the last one left off.
+- **Documentation with a memory of its own.** The AI can write structured notes as it works, linking them together the way Obsidian links notes — and you can browse the result as a graph.
+- **A window into what the AI is doing.** A browser page shows the project's file tree, the docs, the graph, and — this is the part most tools don't have — a live log of every tool call the AI has actually made. If you've ever wondered "is it really using this?", this answers it.
+
+## Install (one time, per machine)
+
+```
+git clone <this repo> BrAIn
+cd BrAIn
+```
+
+**Windows:** double-click **`Install BrAIn.bat`**.
+**macOS/Linux:** run **`./install.sh`**.
+
+Either one installs everything, builds it, and makes the `brain` command available everywhere on your machine — on macOS/Linux it also adds `brain` to your shell's `PATH` (`~/.zshrc`/`~/.bashrc`) if it isn't there already.
+
+If you'd rather see what's happening, or you're on something else entirely:
+
+```
+npm install
+npm run build
+npm link
+```
+
+`npm link` is what makes the `brain` command work from any folder afterward — every instruction below assumes it's been run once.
+
+<details><summary>"brain: command not found" after installing?</summary>
+
+Your terminal's `PATH` doesn't include npm's global folder yet — `Install BrAIn.bat`/`install.sh` fix this automatically. Doing it by hand: Windows — `setx PATH "%PATH%;%APPDATA%\npm"`; macOS/Linux — add `export PATH="$PATH:$(npm config get prefix)/bin"` to your shell's rc file (`~/.zshrc` or `~/.bashrc`). Either way, open a **new** terminal afterward.
+</details>
+
+## Connect it to your AI (MCP)
+
+This is the part that lets an AI actually use BrAIn. One command, once per project:
+
+```
+brain --install-mcp --client claude-code --root /path/to/your/project
+```
+
+Swap `claude-code` for `cursor`, or `claude-desktop` (Windows). This writes (or safely merges into) that tool's configuration file — nothing else already registered there gets touched. Restart the AI tool afterward so it notices.
+
+Don't use one of those three, or you're on macOS/Linux with Claude Desktop? Point `--config` at the exact file instead of using `--client`:
+
+```
+brain --install-mcp --config /path/to/mcp-config.json --root /path/to/your/project
+```
+
+<details><summary>What this actually writes, if you want to check or edit it by hand</summary>
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "command": "brain",
+      "args": ["--mode", "mcp", "--root", "/path/to/your/project"]
+    }
+  }
+}
+```
+
+Want more than one project available at once in the same AI tool? Run the command again with a different `--name` for each one.
+</details>
+
+**Getting the AI to actually use it:** connecting BrAIn doesn't force your AI to prefer it over its own built-in file tools. Tell it to, in your project's own instructions file (e.g. `CLAUDE.md`) — something like "use BrAIn's tools for exploring and editing this project." The MCP tab described below is how you check that it's listening.
+
+## Browse it yourself (the GUI)
+
+```
+brain --mode http --root /path/to/your/project --port 4173
+```
+
+Then open `http://localhost:4173`. Or skip typing entirely:
+
+**One-command launcher:** run `brain --init /path/to/your/project` once. It drops a ready-made launcher right into that project folder — `Start BrAIn.bat` on Windows, `start-brain.sh` (already executable) on macOS/Linux — run it any time to open the explorer, no path or flags to remember. (This also does the MCP setup above for Claude Code in the same step; add `--no-mcp` if you don't want that.)
+
+Once it's open, there are seven tabs (see [screenshot.md](screenshot.md) for what each one looks like):
+
+| Tab | What it's for |
+|---|---|
+| **Files** | Browse and edit the project's actual files. Create new files or folders, rename or delete anything, right from the tree. |
+| **Docs** | The documentation pages the AI has written. Click one to read or edit it. |
+| **Graph** | The same docs, drawn as a network — a link between two pages becomes a line between two nodes. Drag nodes around, click one to open it. |
+| **Memory** | The persistent notes the AI is told to check before starting work. |
+| **Style Guide** | The design rules the AI is told to follow for anything visual. |
+| **Index** | What the search index actually contains — every file it knows about, how many lines, and when it was last updated. Useful for confirming a change was picked up. |
+| **MCP** | A running log of every tool call an AI has made through MCP — what it called, with what arguments, whether it succeeded, and how long it took. |
+
+Running several projects at once is fine — each one's launcher opens its own project on its own port (it picks the next free one automatically if `4173` is already taken by another project).
+
+## What the AI can actually do (the tool list)
+
+The same set of capabilities is available two ways — as MCP tools for an AI, and as a plain HTTP API (`/api/...`) for anything else, like a browser or a custom integration. Grouped by what they're for:
+
+**Look around:** list the file tree, read a whole file or just a line range, read several files at once, list a file's functions/classes/etc. with line numbers, search the project by text or pattern (optionally with a few lines of surrounding context, or scoped to one folder), find every real usage of a symbol across the codebase, and jump from a use of a symbol straight to where it's actually declared — the last two via real code understanding, not text matching.
+
+**Make changes:** write a file's full contents, or patch just one exact piece of text without resending the whole file. Create a new file or folder without any risk of overwriting something that's already there. Rename, move, or permanently delete a file or folder.
+
+**Remember things:** read or write documentation pages (with the `[[wikilink]]` graph described above), search across every doc's content, and read or write the memory and style guide pages.
+
+**Check its own work:** see what the search index actually contains, and (from the GUI only, for now) see the log of what the AI has actually called.
+
+Anything editable from a tool is also editable by hand from the GUI — open a file or doc and click **Edit**. A change made either way is picked up by search and the docs graph the same way, and other open browser tabs update live without a refresh.
+
+## How it stays fast on a big project
+
+Search doesn't re-scan your files every time. Every line of every source file lives in a small SQLite database (`.brain/index.db`) that BrAIn manages for you — the same technology behind a lot of desktop search tools, just running locally for your project. It updates itself incrementally as files change, survives restarts without rebuilding, and never needs to hold your whole project in memory to answer a query.
+
+The trade-off: it currently uses an experimental (but stable) part of Node.js, so you'll see a one-line `ExperimentalWarning` when it starts. Harmless.
+
+## Developing BrAIn itself
+
+```
+npm run dev
+```
+
+Rebuilds automatically when you change the source, and restarts the running server so you're never testing against stale code.
+
+```
+npm test
+```
+
+Runs the test suite against a real, temporary copy of the database — nothing here is mocked.
+
+## Known limits, honestly
+
+- Finding every real usage of a symbol (`find_references`) and AST-accurate function/class listing only understand JavaScript and TypeScript today. Other languages fall back to a simpler, pattern-based scan that can miss unusual syntax.
+- Very short search terms (under 3 characters) and pattern (regex) searches can't use the fast index — they still work, just by scanning, which is slower on a very large project.
+- There's no login or access control on the browser/HTTP mode. It's built to run on your own machine — don't put it on a network anyone else can reach without adding one.

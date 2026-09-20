@@ -1,0 +1,28 @@
+node_modules/
+dist/
+
+# BrAIn's own per-project storage (search index, docs, memory, style guide) — regenerated/local, not shared
+.brain/
+
+# Editor/tool-specific local config
+.claude/
+.impeccable/
+.mcp.json
+DESIGN.md
+PRODUCT.md
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor swap/temp files
+*.swp
+*.swo
+*~
+
+# Test/coverage output
+coverage/
