@@ -1,9 +1,30 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { runMcp } from "./mcp/server.js";
 import { runHttp } from "./http/server.js";
 import { installMcpConfig, resolveClientConfigPath } from "./core/mcp-config.js";
+import { instructionsPathForClient, ensureAgentInstructions } from "./core/agent-instructions.js";
+import { checkForUpdate } from "./core/update-check.js";
+
+// Where BrAIn itself is installed (dist/index.js's own folder, one level up) — not `--root`,
+// which is the unrelated project a user is pointing BrAIn *at*. This is what should be checked
+// for updates, and it resolves correctly through an `npm link` symlink too.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BRAIN_INSTALL_ROOT = path.join(__dirname, "..");
+
+/** Fire-and-forget: never blocks startup, never throws (checkForUpdate already swallows its own
+ *  failures — offline, no git, no remote, all silently skipped). */
+function notifyIfUpdateAvailable(): void {
+  checkForUpdate(BRAIN_INSTALL_ROOT).then((info) => {
+    if (!info) return;
+    console.log(
+      `\nA newer version of BrAIn is available (local ${info.local.slice(0, 7)}, origin ${info.remote.slice(0, 7)}).\n` +
+        `Update with: git -C "${BRAIN_INSTALL_ROOT}" pull && npm --prefix "${BRAIN_INSTALL_ROOT}" install && npm --prefix "${BRAIN_INSTALL_ROOT}" run build\n`,
+    );
+  });
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -83,17 +104,25 @@ function launcherSh(port: number): string {
   ].join("\n");
 }
 
-function installMcpAndReport(configPath: string, projectRoot: string, name: string): void {
+/** `client` is undefined when the caller passed --config directly instead of a known --client
+ *  name — there's then no known instructions-file format to write, so that step is skipped. */
+function installMcpAndReport(configPath: string, projectRoot: string, name: string, client?: string): void {
   installMcpConfig(configPath, projectRoot, name);
   console.log(`MCP config updated: ${configPath} (server "${name}", root: ${projectRoot})`);
+  const instrPath = client ? instructionsPathForClient(client, projectRoot) : undefined;
+  if (instrPath) {
+    ensureAgentInstructions(instrPath, name);
+    console.log(`Agent instructions updated: ${instrPath} (tells the AI to prefer "${name}"'s tools)`);
+  }
   console.log("Restart the client for it to pick up the change.");
 }
 
 const { mode, root, port, open, init, noMcp, installMcp, client, configPath, name } = parseArgs();
 
 if (installMcp) {
-  const target = configPath ?? resolveClientConfigPath(client ?? "claude-code", root);
-  installMcpAndReport(target, root, name);
+  const resolvedClient = configPath ? client : (client ?? "claude-code");
+  const target = configPath ?? resolveClientConfigPath(resolvedClient!, root);
+  installMcpAndReport(target, root, name, resolvedClient);
 } else if (init) {
   writeLauncher(init, port);
   // Claude Code reads .mcp.json straight from the project folder, so the one command that sets
@@ -101,13 +130,16 @@ if (installMcp) {
   // (e.g. for a client whose config doesn't live in the project itself).
   if (!noMcp) {
     try {
-      installMcpAndReport(path.join(path.resolve(init), ".mcp.json"), path.resolve(init), name);
+      installMcpAndReport(path.join(path.resolve(init), ".mcp.json"), path.resolve(init), name, "claude-code");
     } catch (e) {
       console.error(`Launcher written, but MCP config setup failed: ${(e as Error).message}`);
     }
   }
 } else if (mode === "mcp") {
+  // stdout is the MCP JSON-RPC channel here — any stray console.log would corrupt it, so no
+  // update notice in this mode (checkForUpdate itself is skipped, not just its output).
   runMcp(root);
 } else {
+  notifyIfUpdateAvailable();
   runHttp(root, port, open);
 }

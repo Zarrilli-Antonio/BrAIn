@@ -107,17 +107,19 @@ export class SearchIndex {
     else this.indexFile(abs);
   }
 
-  /** Inspects the index itself: every indexed file, its last-indexed mtime, and its line count. */
-  listIndexedFiles(): { path: string; mtimeMs: number; lines: number }[] {
+  /** Inspects the index itself: every indexed file, its last-indexed mtime, line count, and
+   *  character count (the GUI turns the latter into a ~tokens estimate — 4 chars/token is the
+   *  usual rule of thumb, and exact tokenization isn't worth a tokenizer dependency here). */
+  listIndexedFiles(): { path: string; mtimeMs: number; lines: number; chars: number }[] {
     this.ensureReady();
     const rows = this.db
       .prepare(
-        `SELECT f.path AS path, f.mtime_ms AS mtimeMs, COUNT(lc.line_no) AS lines
+        `SELECT f.path AS path, f.mtime_ms AS mtimeMs, COUNT(lc.line_no) AS lines, COALESCE(SUM(LENGTH(lc.text)), 0) AS chars
          FROM files f LEFT JOIN line_content lc ON lc.path = f.path
          GROUP BY f.path, f.mtime_ms
          ORDER BY f.path`,
       )
-      .all() as unknown as { path: string; mtimeMs: number; lines: number }[];
+      .all() as unknown as { path: string; mtimeMs: number; lines: number; chars: number }[];
     return rows;
   }
 

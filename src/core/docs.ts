@@ -45,6 +45,28 @@ export function writeDoc(root: string, rel: string, content: string): void {
   fs.writeFileSync(abs, content, "utf-8");
 }
 
+/** Deletes a doc — unlike deletePath (which refuses to touch anything under .brain/), docs are
+ *  user/AI-managed content, not BrAIn's internal index, so they need their own delete alongside
+ *  the existing read/write/search. Throws if rel doesn't exist, same as deletePath. */
+export function deleteDoc(root: string, rel: string): void {
+  const dir = docsDir(root);
+  const abs = safeResolve(dir, rel);
+  if (!fs.existsSync(abs)) throw new Error(`${rel} does not exist`);
+  fs.rmSync(abs, { force: true });
+}
+
+/** Renames/moves a doc — same rationale as deleteDoc: the generic renamePath refuses anything
+ *  under .brain/, so docs need their own. Refuses to clobber an existing doc at newRel. */
+export function renameDoc(root: string, oldRel: string, newRel: string): void {
+  const dir = docsDir(root);
+  const oldAbs = safeResolve(dir, oldRel);
+  const newAbs = safeResolve(dir, newRel);
+  if (!fs.existsSync(oldAbs)) throw new Error(`${oldRel} does not exist`);
+  if (fs.existsSync(newAbs)) throw new Error(`${newRel} already exists`);
+  fs.mkdirSync(path.dirname(newAbs), { recursive: true });
+  fs.renameSync(oldAbs, newAbs);
+}
+
 export interface DocMatch {
   doc: string;
   line: number;

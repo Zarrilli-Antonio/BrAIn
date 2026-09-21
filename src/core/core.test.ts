@@ -8,11 +8,13 @@ import { buildTree, readFileChunk, writeFile, createFile, createFolder, renamePa
 import { getSymbols } from "./symbols.js";
 import { searchCode } from "./search.js";
 import { SearchIndex } from "./index-store.js";
-import { listDocs, readDoc, writeDoc, getDocsGraph, readDocOrEmpty, searchDocs } from "./docs.js";
+import { listDocs, readDoc, writeDoc, deleteDoc, renameDoc, getDocsGraph, readDocOrEmpty, searchDocs } from "./docs.js";
 import { makeTools } from "./tools.js";
 import { McpLog } from "./mcp-log.js";
 import { findReferences, findDefinition } from "./references.js";
 import { installMcpConfig, resolveClientConfigPath } from "./mcp-config.js";
+import { instructionsPathForClient, ensureAgentInstructions } from "./agent-instructions.js";
+import { checkForUpdate } from "./update-check.js";
 
 function mkTmpProject(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "brain-test-"));
@@ -361,6 +363,34 @@ test("readDocOrEmpty returns '' for a missing doc, real content once written", (
   assert.equal(readDocOrEmpty(root, "memory.md"), "Always use TypeScript strict mode.");
 });
 
+test("deleteDoc removes a doc, throws on a missing one or a traversal attempt", () => {
+  const root = mkTmpProject();
+  writeDoc(root, "overview.md", "# Overview");
+  deleteDoc(root, "overview.md");
+  assert.deepEqual(listDocs(root), []);
+  assert.throws(() => deleteDoc(root, "overview.md"));
+  assert.throws(() => deleteDoc(root, "../../evil.md"));
+});
+
+test("renameDoc moves a doc, refuses a missing source, an existing dest, or traversal", () => {
+  const root = mkTmpProject();
+  writeDoc(root, "old.md", "# Content");
+  renameDoc(root, "old.md", "folder/new.md");
+  assert.deepEqual(listDocs(root), ["folder/new.md"]);
+  assert.equal(readDoc(root, "folder/new.md"), "# Content");
+
+  assert.throws(() => renameDoc(root, "missing.md", "x.md"));
+
+  writeDoc(root, "taken.md", "# Taken");
+  assert.throws(() => renameDoc(root, "folder/new.md", "taken.md"));
+  assert.throws(() => renameDoc(root, "folder/new.md", "../../evil.md"));
+});
+
+test("checkForUpdate returns null (never throws) for a plain folder that isn't a git repo", async () => {
+  const root = mkTmpProject();
+  assert.equal(await checkForUpdate(root), null);
+});
+
 test("getDocsGraph links docs via [[wikilinks]]", () => {
   const root = mkTmpProject();
   writeDoc(root, "overview.md", "# Overview\nSee [[Auth]] for details.");
@@ -409,3 +439,29 @@ test("installMcpConfig refuses to clobber a config file that isn't valid JSON", 
   assert.throws(() => installMcpConfig(configPath, "/project/a", "brain"));
   assert.equal(fs.readFileSync(configPath, "utf-8"), "{not valid json");
 });
+
+test("instructionsPathForClient knows claude-code and cursor, has nothing for claude-desktop", () => {
+  const root = "/some/project";
+  assert.equal(instructionsPathForClient("claude-code", root), path.join(root, "CLAUDE.md"));
+  assert.equal(instructionsPathForClient("cursor", root), path.join(root, ".cursorrules"));
+  assert.equal(instructionsPathForClient("claude-desktop", root), undefined);
+});
+
+test("ensureAgentInstructions creates a fresh file, updates its block in place on rerun, and leaves the rest of an existing file alone", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "brain-agent-instructions-"));
+  const file = path.join(dir, "CLAUDE.md");
+
+  ensureAgentInstructions(file, "brain");
+  const first = fs.readFileSync(file, "utf-8");
+  assert.match(first, /Use its tools instead of built-in file tools/);
+
+  fs.writeFileSync(file, `# My Project\n\nSome notes I wrote.\n\n${first}`);
+  ensureAgentInstructions(file, "brain");
+  const second = fs.readFileSync(file, "utf-8");
+  assert.match(second, /Some notes I wrote\./);
+  assert.equal(countOccurrences(second, "<!-- brain-mcp:brain -->"), 1);
+});
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}

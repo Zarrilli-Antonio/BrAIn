@@ -3,7 +3,7 @@ import { getSymbols } from "./symbols.js";
 import { findReferences, findDefinition } from "./references.js";
 import { searchCode } from "./search.js";
 import { SearchIndex, SearchOptions } from "./index-store.js";
-import { listDocs, readDoc, writeDoc, getDocsGraph, readDocOrEmpty, searchDocs } from "./docs.js";
+import { listDocs, readDoc, writeDoc, deleteDoc, renameDoc, getDocsGraph, readDocOrEmpty, searchDocs } from "./docs.js";
 import { McpLog } from "./mcp-log.js";
 
 const MEMORY_DOC = "memory.md";
@@ -73,6 +73,14 @@ export function makeTools(root: string) {
     readDoc: (rel: string) => readDoc(root, rel),
     writeDoc: (rel: string, content: string) => {
       writeDoc(root, rel, content);
+      return { ok: true };
+    },
+    deleteDoc: (rel: string) => {
+      deleteDoc(root, rel);
+      return { ok: true };
+    },
+    renameDoc: (oldRel: string, newRel: string) => {
+      renameDoc(root, oldRel, newRel);
       return { ok: true };
     },
     getIndexStatus: () => index.listIndexedFiles(),

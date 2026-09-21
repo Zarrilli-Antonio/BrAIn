@@ -184,6 +184,22 @@ export function runHttp(root: string, port = 4173, open = false): Promise<Server
     }
   });
 
+  app.delete("/api/doc", (req, res) => {
+    try {
+      res.json(tools.deleteDoc(String(req.query.path)));
+    } catch (e) {
+      res.status(400).json({ error: String((e as Error).message) });
+    }
+  });
+
+  app.post("/api/doc/rename", (req, res) => {
+    try {
+      res.json(tools.renameDoc(String(req.body.oldPath), String(req.body.newPath)));
+    } catch (e) {
+      res.status(400).json({ error: String((e as Error).message) });
+    }
+  });
+
   app.use(express.static(path.join(__dirname, "..", "..", "public")));
 
   // Ports collide when several BrAIn instances run at once (one per project) — bump to the next free one instead of crashing.

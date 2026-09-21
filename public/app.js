@@ -203,17 +203,34 @@ async function deleteEntry(node) {
   loadTree();
 }
 
+// ponytail: 4 chars/token is the standard rough estimate, not a real tokenizer — good enough for
+// "roughly how much context does this project cost", not exact billing.
+const CHARS_PER_TOKEN = 4;
+const COST_PER_1M_TOKENS = 3; // USD — ballpark input-token rate; adjust for your model of choice.
+
 async function loadIndex() {
   contentEl.className = "code";
   treeEl.innerHTML = "";
   const res = await fetch("/api/index");
   const files = await res.json();
+  let totalChars = 0;
   const rows = files
-    .map((f) => `<tr class="node file" data-path="${escapeHtml(f.path)}"><td>${escapeHtml(f.path)}</td><td>${f.lines}</td><td>${new Date(f.mtimeMs).toLocaleString()}</td></tr>`)
+    .map((f) => {
+      totalChars += f.chars;
+      const tokens = Math.ceil(f.chars / CHARS_PER_TOKEN);
+      return `<tr class="node file" data-path="${escapeHtml(f.path)}"><td>${escapeHtml(f.path)}</td><td class="num">${f.lines.toLocaleString()}</td><td class="num">${tokens.toLocaleString()}</td><td class="muted">${new Date(f.mtimeMs).toLocaleString()}</td></tr>`;
+    })
     .join("");
+  const totalTokens = Math.ceil(totalChars / CHARS_PER_TOKEN);
+  const totalCost = (totalTokens / 1_000_000) * COST_PER_1M_TOKENS;
   contentEl.innerHTML =
-    `<table class="index-table"><thead><tr><th>Path</th><th>Lines</th><th>Indexed</th></tr></thead>` +
-    `<tbody>${rows || '<tr><td colspan="3">Nothing indexed yet.</td></tr>'}</tbody></table>`;
+    `<table class="index-table"><thead><tr><th>Path</th><th class="num">Lines</th><th class="num">Tokens (est.)</th><th>Indexed</th></tr></thead>` +
+    `<tbody>${rows || '<tr><td colspan="4">Nothing indexed yet.</td></tr>'}</tbody>` +
+    (files.length
+      ? `<tfoot><tr><td>${files.length.toLocaleString()} file${files.length === 1 ? "" : "s"}</td><td></td>` +
+        `<td class="num">${totalTokens.toLocaleString()}</td><td class="muted">≈ $${totalCost.toFixed(2)} @ $${COST_PER_1M_TOKENS}/1M</td></tr></tfoot>`
+      : "") +
+    `</table>`;
   pulseContent();
 }
 
@@ -237,14 +254,14 @@ async function loadMcpLog(animate = true) {
       const statusClass = e.ok ? "log-status-ok" : "log-status-error";
       const statusText = e.ok ? "ok" : "error" + (e.error ? `: ${escapeHtml(e.error)}` : "");
       return (
-        `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td>${escapeHtml(e.tool)}</td>` +
+        `<tr><td class="muted">${new Date(e.ts).toLocaleTimeString()}</td><td class="muted">${escapeHtml(e.tool)}</td>` +
         `<td class="log-args" title="${escapeHtml(e.args)}">${escapeHtml(e.args)}</td>` +
-        `<td class="${statusClass}">${statusText}</td><td>${e.durationMs}ms</td></tr>`
+        `<td class="${statusClass}">${statusText}</td><td class="num">${e.durationMs}ms</td></tr>`
       );
     })
     .join("");
   contentEl.innerHTML =
-    `<table class="index-table"><thead><tr><th>Time</th><th>Tool</th><th>Args</th><th>Status</th><th>Duration</th></tr></thead>` +
+    `<table class="index-table"><thead><tr><th>Time</th><th>Tool</th><th>Args</th><th>Status</th><th class="num">Duration</th></tr></thead>` +
     `<tbody>${rows || '<tr><td colspan="5">No MCP calls recorded yet — the AI hasn’t used this project through MCP.</td></tr>'}</tbody></table>`;
   if (animate) pulseContent();
 }
@@ -380,12 +397,70 @@ async function openDoc(relPath) {
   );
 }
 
+function renderCreateDocBar() {
+  const bar = document.createElement("div");
+  bar.className = "toolbar";
+  const docBtn = document.createElement("button");
+  docBtn.textContent = "+ Doc";
+  docBtn.onclick = createDoc;
+  bar.appendChild(docBtn);
+  return bar;
+}
+
+async function createDoc() {
+  const name = prompt("New doc path (e.g. notes.md, or folder/notes.md):");
+  if (!name) return;
+  const path = name.trim().endsWith(".md") ? name.trim() : name.trim() + ".md";
+  const res = await fetch("/api/doc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, content: "" }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || "Could not create " + path);
+    return;
+  }
+  await loadDocsList();
+  openDoc(path);
+}
+
+async function deleteDocEntry(path) {
+  if (!confirm(`Delete "${path}"? This cannot be undone.`)) return;
+  const res = await fetch("/api/doc?path=" + encodeURIComponent(path), { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || "Delete failed.");
+    return;
+  }
+  if (currentDoc === path) currentDoc = null;
+  await loadDocsList();
+}
+
+async function renameDocEntry(path) {
+  const newPath = prompt("Rename to:", path);
+  if (!newPath || newPath === path) return;
+  const res = await fetch("/api/doc/rename", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oldPath: path, newPath }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || "Rename failed.");
+    return;
+  }
+  if (currentDoc === path) currentDoc = newPath;
+  await loadDocsList();
+}
+
 async function loadDocsList() {
   contentEl.className = "doc";
   currentDoc = null;
   const res = await fetch("/api/docs");
   docsCache = await res.json();
   treeEl.innerHTML = "";
+  treeEl.appendChild(renderCreateDocBar());
   const ul = document.createElement("ul");
   for (const d of docsCache) {
     const li = document.createElement("li");
@@ -394,6 +469,18 @@ async function loadDocsList() {
     label.className = "node-label";
     label.textContent = d;
     li.appendChild(label);
+    const actions = document.createElement("span");
+    actions.className = "node-actions";
+    const renameBtn = document.createElement("button");
+    renameBtn.textContent = "Ren";
+    renameBtn.setAttribute("aria-label", "Rename " + d);
+    renameBtn.onclick = (e) => { e.stopPropagation(); renameDocEntry(d); };
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Del";
+    deleteBtn.setAttribute("aria-label", "Delete " + d);
+    deleteBtn.onclick = (e) => { e.stopPropagation(); deleteDocEntry(d); };
+    actions.append(renameBtn, deleteBtn);
+    li.appendChild(actions);
     makeRowInteractive(label, () => { closeDrawer(); openDoc(d); });
     ul.appendChild(li);
   }
@@ -581,10 +668,23 @@ function nodeAt(g, mx, my) {
   return g.nodes.find((n) => Math.hypot(n.x - mx, n.y - my) < 9);
 }
 
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function loadGraph() {
   contentEl.className = "graph";
   treeEl.innerHTML = "";
-  contentEl.innerHTML = '<canvas id="graphCanvas" style="width:100%;height:100%;"></canvas>';
+  contentEl.innerHTML =
+    '<div class="toolbar" style="position:absolute;right:20px;top:20px;z-index:1;">' +
+    '<button id="exportGraphPng">Export PNG</button>' +
+    '<button id="exportGraphJson">Export JSON</button>' +
+    '</div><canvas id="graphCanvas" style="width:100%;height:100%;"></canvas>';
   const canvas = document.getElementById("graphCanvas");
   const res = await fetch("/api/docs/graph");
   const data = await res.json();
@@ -593,6 +693,10 @@ async function loadGraph() {
     pulseContent();
     return;
   }
+  document.getElementById("exportGraphPng").onclick = () =>
+    canvas.toBlob((blob) => downloadBlob("docs-graph.png", blob));
+  document.getElementById("exportGraphJson").onclick = () =>
+    downloadBlob("docs-graph.json", new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
   pulseContent();
   const g = initGraph(canvas, data);
   let dragMoved = false;

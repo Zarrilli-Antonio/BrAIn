@@ -145,6 +145,19 @@ export async function runMcp(root: string) {
     content: [{ type: "text", text: JSON.stringify(tools.writeDoc(path, content)) }],
   }));
 
+  tool("delete_doc", "Permanently delete a documentation page — e.g. one whose source file no longer exists. No trash, no undo.", {
+    path: z.string(),
+  }, ({ path }: { path: string }) => ({
+    content: [{ type: "text", text: JSON.stringify(tools.deleteDoc(path)) }],
+  }));
+
+  tool("rename_doc", "Rename/move a documentation page. Refuses to overwrite an existing doc at the new path.", {
+    oldPath: z.string(),
+    newPath: z.string(),
+  }, ({ oldPath, newPath }: { oldPath: string; newPath: string }) => ({
+    content: [{ type: "text", text: JSON.stringify(tools.renameDoc(oldPath, newPath)) }],
+  }));
+
   tool("get_index_status", "Inspect the search index itself: every indexed file with its last-indexed time and line count. Useful to confirm a file is actually indexed (e.g. right after a write) or to see index staleness.", {}, () => ({
     content: [{ type: "text", text: JSON.stringify(tools.getIndexStatus()) }],
   }));

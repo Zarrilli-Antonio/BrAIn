@@ -10,6 +10,7 @@ dist/
 .mcp.json
 DESIGN.md
 PRODUCT.md
+CLAUDE.md
 
 # OS junk
 .DS_Store
@@ -26,3 +27,6 @@ npm-debug.log*
 
 # Test/coverage output
 coverage/
+
+# Scratch files from rendering a local preview (e.g. checking favicon.svg at real size)
+scratch-preview.*

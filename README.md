@@ -1,3 +1,5 @@
+<img src="public/favicon.svg" alt="" width="64" height="64" align="left" style="margin: 0 16px 16px 0" />
+
 # BrAIn
 
 BrAIn lets an AI coding assistant explore and edit your project without reading whole files just to find one function, and gives it a place to keep documentation, notes, and a style guide that stick around between sessions. A browser-based explorer lets a human look at the same project — and see exactly what the AI has been doing.
@@ -49,6 +51,8 @@ brain --install-mcp --client claude-code --root /path/to/your/project
 
 Swap `claude-code` for `cursor`, or `claude-desktop` (Windows). This writes (or safely merges into) that tool's configuration file — nothing else already registered there gets touched. Restart the AI tool afterward so it notices.
 
+For `claude-code` and `cursor` (both project-scoped), the same command also writes — or updates in place, on a rerun — a marked block in that project's own instructions file (`CLAUDE.md` for Claude Code, `.cursorrules` for Cursor) telling the AI to actually prefer BrAIn's tools over its built-in ones. Anything else already in that file, outside the marked block, is left alone. `claude-desktop`'s config isn't project-scoped, so there's no per-project file to write this into — tell it by hand there.
+
 Don't use one of those three, or you're on macOS/Linux with Claude Desktop? Point `--config` at the exact file instead of using `--client`:
 
 ```
@@ -71,7 +75,7 @@ brain --install-mcp --config /path/to/mcp-config.json --root /path/to/your/proje
 Want more than one project available at once in the same AI tool? Run the command again with a different `--name` for each one.
 </details>
 
-**Getting the AI to actually use it:** connecting BrAIn doesn't force your AI to prefer it over its own built-in file tools. Tell it to, in your project's own instructions file (e.g. `CLAUDE.md`) — something like "use BrAIn's tools for exploring and editing this project." The MCP tab described below is how you check that it's listening.
+**Getting the AI to actually use it:** connecting BrAIn doesn't by itself force your AI to prefer it over its own built-in file tools — for `claude-code`/`cursor`, `--install-mcp` already wrote that instruction into `CLAUDE.md`/`.cursorrules` for you (see above). On another client, or if `--config` was used instead of `--client`, add it yourself to your project's own instructions file — something like "use BrAIn's tools for exploring and editing this project." The MCP tab described below is how you check that it's listening.
 
 ## Browse it yourself (the GUI)
 
@@ -88,11 +92,11 @@ Once it's open, there are seven tabs (see [screenshot.md](screenshot.md) for wha
 | Tab | What it's for |
 |---|---|
 | **Files** | Browse and edit the project's actual files. Create new files or folders, rename or delete anything, right from the tree. |
-| **Docs** | The documentation pages the AI has written. Click one to read or edit it. |
-| **Graph** | The same docs, drawn as a network — a link between two pages becomes a line between two nodes. Drag nodes around, click one to open it. |
+| **Docs** | The documentation pages the AI has written. Click one to read or edit it, create a new one, or rename/delete an existing one — right from the list. |
+| **Graph** | The same docs, drawn as a network — a link between two pages becomes a line between two nodes. Drag nodes around, click one to open it. Export the current layout as a PNG image or the raw JSON. |
 | **Memory** | The persistent notes the AI is told to check before starting work. |
 | **Style Guide** | The design rules the AI is told to follow for anything visual. |
-| **Index** | What the search index actually contains — every file it knows about, how many lines, and when it was last updated. Useful for confirming a change was picked up. |
+| **Index** | What the search index actually contains — every file, its line count, an estimated token count, and when it was last updated, with a total (and a rough cost estimate) in the footer. Useful for confirming a change was picked up, or seeing what exploring this project actually costs. |
 | **MCP** | A running log of every tool call an AI has made through MCP — what it called, with what arguments, whether it succeeded, and how long it took. |
 
 Running several projects at once is fine — each one's launcher opens its own project on its own port (it picks the next free one automatically if `4173` is already taken by another project).
@@ -105,7 +109,7 @@ The same set of capabilities is available two ways — as MCP tools for an AI, a
 
 **Make changes:** write a file's full contents, or patch just one exact piece of text without resending the whole file. Create a new file or folder without any risk of overwriting something that's already there. Rename, move, or permanently delete a file or folder.
 
-**Remember things:** read or write documentation pages (with the `[[wikilink]]` graph described above), search across every doc's content, and read or write the memory and style guide pages.
+**Remember things:** read, write, rename, or delete documentation pages (with the `[[wikilink]]` graph described above), search across every doc's content, and read or write the memory and style guide pages.
 
 **Check its own work:** see what the search index actually contains, and (from the GUI only, for now) see the log of what the AI has actually called.
 
@@ -116,6 +120,10 @@ Anything editable from a tool is also editable by hand from the GUI — open a f
 Search doesn't re-scan your files every time. Every line of every source file lives in a small SQLite database (`.brain/index.db`) that BrAIn manages for you — the same technology behind a lot of desktop search tools, just running locally for your project. It updates itself incrementally as files change, survives restarts without rebuilding, and never needs to hold your whole project in memory to answer a query.
 
 The trade-off: it currently uses an experimental (but stable) part of Node.js, so you'll see a one-line `ExperimentalWarning` when it starts. Harmless.
+
+## Staying up to date
+
+`brain --mode http` checks — via a quick, silent `git` comparison against `origin`, nothing phoned home — whether your local clone is behind. If it is, it prints an update notice (with the exact `git pull` / `npm install` / `npm run build` command) right in the terminal when the server starts. No network access, no git remote, or already up to date: nothing is printed, and startup is never delayed waiting on it.
 
 ## Developing BrAIn itself
 
