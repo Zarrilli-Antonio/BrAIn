@@ -2,13 +2,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { runMcp } from "./mcp/server.js";
 import { runHttp } from "./http/server.js";
 import { installMcpConfig, resolveClientConfigPath } from "./core/mcp-config.js";
 import { instructionsPathForClient, ensureAgentInstructions } from "./core/agent-instructions.js";
 import { checkForUpdate } from "./core/update-check.js";
-import { isProfile, readProfile, writeProfile, Profile } from "./core/profile.js";
+import { isProfile, readProfile, writeProfile, profileConfigPath, Profile } from "./core/profile.js";
 
 // Where BrAIn itself is installed (dist/index.js's own folder, one level up) — not `--root`,
 // which is the unrelated project a user is pointing BrAIn *at*. This is what should be checked
@@ -40,6 +41,7 @@ function parseArgs() {
     port: Number(get("--port") ?? 4173),
     open: args.includes("--open"),
     init: args.includes("--init") ? get("--init") ?? process.cwd() : undefined,
+    writeLauncherTo: args.includes("--write-launcher") ? get("--write-launcher") ?? process.cwd() : undefined,
     noMcp: args.includes("--no-mcp"),
     installMcp: args.includes("--install-mcp"),
     client: get("--client"),
@@ -54,20 +56,34 @@ function parseArgs() {
  * Writes a double-clickable launcher into a project folder: starts BrAIn scoped to that folder, opens the browser.
  * Calls the global `brain` command (from `npm link` in the BrAIn repo) instead of a hardcoded path, so the same
  * launcher works when copied into any project on this machine, regardless of where BrAIn itself is installed.
- * Writes a `.bat` on Windows, a `.sh` (marked executable) everywhere else.
+ * Writes a `.bat` on Windows, a `.command` on macOS (Finder runs it in Terminal on double-click — a plain `.sh`
+ * just opens in a text editor there), a `.sh` (marked executable) on Linux, where `.command` has no such meaning.
  */
 function writeLauncher(targetDir: string, port: number): void {
   const dir = path.resolve(targetDir);
   fs.mkdirSync(dir, { recursive: true });
-  const isWindows = process.platform === "win32";
-  const launcherPath = path.join(dir, isWindows ? "Start BrAIn.bat" : "start-brain.sh");
-  fs.writeFileSync(launcherPath, isWindows ? launcherBat(port) : launcherSh(port), "utf-8");
-  if (!isWindows) fs.chmodSync(launcherPath, 0o755);
+  const platform = process.platform;
+  const filename = platform === "win32" ? "Start BrAIn.bat" : platform === "darwin" ? "start-brain.command" : "start-brain.sh";
+  const launcherPath = path.join(dir, filename);
+  fs.writeFileSync(launcherPath, platform === "win32" ? launcherBat(port) : launcherSh(port), "utf-8");
+  if (platform !== "win32") fs.chmodSync(launcherPath, 0o755);
+  if (platform === "darwin") {
+    // Best-effort: clears the quarantine flag if this launcher (or the repo it's copied from)
+    // was extracted from a downloaded zip rather than `git clone`d — without it, Gatekeeper
+    // blocks the very first double-click ("Apple cannot check it for malicious software").
+    // A no-op, not an error, when nothing is quarantined; failing silently either way is fine —
+    // worst case the user sees that same one-time warning and works around it by hand (README).
+    try {
+      execFileSync("xattr", ["-d", "com.apple.quarantine", launcherPath], { stdio: "ignore" });
+    } catch {
+      // not quarantined, or `xattr` unavailable — nothing to clear
+    }
+  }
   console.log(`Launcher written: ${launcherPath}`);
   console.log(
-    isWindows
-      ? `Double-click it to start BrAIn for this project (root: ${dir}).`
-      : `Run it (./${path.basename(launcherPath)}) to start BrAIn for this project (root: ${dir}).`,
+    platform === "linux"
+      ? `Run it (./${path.basename(launcherPath)}) to start BrAIn for this project (root: ${dir}).`
+      : `Double-click it to start BrAIn for this project (root: ${dir}).`,
   );
 }
 
@@ -112,11 +128,11 @@ function launcherSh(port: number): string {
  *  memory/docs area, different accent color) — and stores the answer in that project's own
  *  `.brain/profile.json`. Non-interactive (no TTY, e.g. a CI/scripted --init) silently defaults
  *  to dev rather than hanging on a prompt nobody can answer. */
-async function promptAndSetProfile(projectRoot: string): Promise<void> {
+async function promptAndSetProfile(projectRoot: string): Promise<Profile> {
   if (!process.stdin.isTTY) {
     writeProfile(projectRoot, "dev");
     console.log('Profile for this project: dev (non-interactive — switch anytime with: brain --set-profile notes --root "' + projectRoot + '")');
-    return;
+    return "dev";
   }
   console.log("\nWhich version of BrAIn is this project for?");
   console.log("  1) dev   - full project explorer: code search, symbols, references (default)");
@@ -127,6 +143,7 @@ async function promptAndSetProfile(projectRoot: string): Promise<void> {
   const profile: Profile = answer.trim() === "2" ? "notes" : "dev";
   writeProfile(projectRoot, profile);
   console.log(`Profile set to "${profile}" for this project. Override any single run with: brain --mode http --profile ${profile === "dev" ? "notes" : "dev"}`);
+  return profile;
 }
 
 /** `client` is undefined when the caller passed --config directly instead of a known --client
@@ -142,9 +159,16 @@ function installMcpAndReport(configPath: string, projectRoot: string, name: stri
   console.log("Restart the client for it to pick up the change.");
 }
 
-const { mode, root, port, open, init, noMcp, installMcp, client, configPath, name, profileFlag, setProfile } = parseArgs();
+const { mode, root, port, open, init, writeLauncherTo, noMcp, installMcp, client, configPath, name, profileFlag, setProfile } = parseArgs();
 
-if (setProfile) {
+if (writeLauncherTo) {
+  // Unlike --init: no MCP setup, no profile prompt right now — this is for a *template* launcher
+  // (installed once, then copied by hand into whatever project folder), and neither of those
+  // makes sense for a location the user hasn't actually picked yet. The launcher it writes is
+  // fully self-contained (resolves its own folder at run time), so the copy works unmodified;
+  // the profile prompt still happens, just on that copy's first real run (see the http branch).
+  writeLauncher(writeLauncherTo, port);
+} else if (setProfile) {
   if (!isProfile(setProfile)) {
     console.error(`Unknown --set-profile "${setProfile}". Use "dev" or "notes".`);
     process.exitCode = 1;
@@ -177,6 +201,19 @@ if (setProfile) {
 } else {
   if (profileFlag && !isProfile(profileFlag)) {
     console.error(`Unknown --profile "${profileFlag}". Use "dev" or "notes". Falling back to the stored default.`);
+  }
+  // First time BrAIn's ever pointed at this project (no --profile override, nothing stored yet):
+  // ask once, right here, so a copy of the generic launcher (--write-launcher) "just works" when
+  // dropped into a new folder — no separate --init/--set-profile step needed first. Also does the
+  // Claude Code MCP setup for free, same as --init — an AI needs it to use BrAIn at all, and
+  // that's just as true pointed at a notes project as a code one.
+  if (!(profileFlag && isProfile(profileFlag)) && !fs.existsSync(profileConfigPath(root))) {
+    await promptAndSetProfile(root);
+    try {
+      installMcpAndReport(path.join(root, ".mcp.json"), root, "brain", "claude-code");
+    } catch (e) {
+      console.error(`MCP setup failed: ${(e as Error).message} (retry with: brain --install-mcp --client claude-code --root "${root}")`);
+    }
   }
   const profile = profileFlag && isProfile(profileFlag) ? profileFlag : readProfile(root);
   notifyIfUpdateAvailable();

@@ -1,6 +1,11 @@
 node_modules/
 dist/
 
+# Drag-anywhere launcher, written by install.sh/Install BrAIn.bat (`brain --write-launcher .`)
+start-brain.sh
+start-brain.command
+Start BrAIn.bat
+
 # BrAIn's own per-project storage (search index, docs, memory, style guide) — regenerated/local, not shared
 .brain/
 

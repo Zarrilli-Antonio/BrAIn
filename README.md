@@ -22,9 +22,12 @@ cd BrAIn
 ```
 
 **Windows:** double-click **`Install BrAIn.bat`**.
-**macOS/Linux:** run **`./install.sh`**.
+**macOS:** double-click **`install.command`**.
+**Linux, or if you'd rather use a terminal on macOS:** run **`./install.sh`**.
 
 Either one installs everything, builds it, and makes the `brain` command available everywhere on your machine — on macOS/Linux it also adds `brain` to your shell's `PATH` (`~/.zshrc`/`~/.bashrc`) if it isn't there already. This step is generic — the same `brain` command works on any project; which **profile** a given project uses is chosen per-project (below), not here.
+
+It also drops a drag-anywhere launcher right into this folder (`start-brain.command` on macOS, `start-brain.sh` on Linux, `Start BrAIn.bat` on Windows) — the simplest way to use BrAIn on a project: drag that one file into the project's folder and double-click it there (Linux: run it from a terminal instead — `.command` only means anything to Finder). First time in a new folder it asks which profile that project is for (dev or notes — more on that below, under "Browse it yourself"); after that it just opens the browser. It's a plain template, not tied to this specific project — copy it as many times as you like.
 
 If you'd rather see what's happening, or you're on something else entirely:
 
@@ -39,6 +42,11 @@ npm link
 <details><summary>"brain: command not found" after installing?</summary>
 
 Your terminal's `PATH` doesn't include npm's global folder yet — `Install BrAIn.bat`/`install.sh` fix this automatically. Doing it by hand: Windows — `setx PATH "%PATH%;%APPDATA%\npm"`; macOS/Linux — add `export PATH="$PATH:$(npm config get prefix)/bin"` to your shell's rc file (`~/.zshrc` or `~/.bashrc`). Either way, open a **new** terminal afterward.
+</details>
+
+<details><summary>macOS says it "cannot check ... for malicious software" when you open install.command or start-brain.command?</summary>
+
+That's Gatekeeper's standard one-time warning for any script that isn't signed with a paid Apple Developer certificate — it means unsigned, not unsafe, and every unsigned `.command`/`.app` you run outside the App Store hits it once. `--write-launcher` already clears this automatically for `start-brain.command` when it can (a no-op if there was nothing to clear); if you still hit it — often because the repo was downloaded as a zip from a browser rather than `git clone`d — **Control-click (or right-click) the file → Open**, then confirm in the dialog. That's a one-time approval for that file; a plain double-click afterward works normally. By hand, from a terminal: `xattr -d com.apple.quarantine start-brain.command` (or `install.command`).
 </details>
 
 ## Connect it to your AI (MCP)
@@ -83,11 +91,9 @@ Want more than one project available at once in the same AI tool? Run the comman
 brain --mode http --root /path/to/your/project --port 4173
 ```
 
-Then open `http://localhost:4173`. Or skip typing entirely:
+Then open `http://localhost:4173`. Or skip typing entirely — drag the launcher the installer already wrote (see above) into the project's folder and double-click it there, no path or flags to remember.
 
-**One-command launcher:** run `brain --init /path/to/your/project` once. It drops a ready-made launcher right into that project folder — `Start BrAIn.bat` on Windows, `start-brain.sh` (already executable) on macOS/Linux — run it any time to open the explorer, no path or flags to remember. (This also does the MCP setup above for Claude Code in the same step; add `--no-mcp` if you don't want that.)
-
-It also asks which **profile** this project is for:
+First time BrAIn runs on a project — whether that's the drag-and-drop launcher, `brain --mode http`, or `brain --init` below — it asks which **profile** that project is for, and does the Claude Code MCP setup below automatically (so an AI can use it too; pass `--no-mcp` to `--init` if you don't want that):
 
 - **dev** — the full project explorer: code search, symbols, references. Green/azure brain mark.
 - **notes** — same underlying tools (every MCP tool and API route works identically either way), lighter GUI for a non-code "team memory" project: marketing notes, company docs, that kind of thing. Blue/violet brain mark instead of green/azure, opens on the Docs tab instead of Files, and the Index/MCP tabs (search-index internals, AI tool-call log — dev debugging views) are hidden since they're not useful on a non-code project. Nothing is deleted — switch to `dev` and they're back.

@@ -32,8 +32,20 @@ case ":$PATH:" in
 esac
 
 echo
-echo "BrAIn is installed. Next, for any project you want to use it with:"
-echo "  brain --init /path/to/project"
-echo "That writes a launcher script, registers BrAIn as an MCP server for Claude Code, and asks"
-echo "which profile that project is for (dev or notes) — all in one step. See README.md for other"
-echo "AI clients (Cursor, Claude Desktop, Windsurf, Cline)."
+echo "Writing a drag-anywhere launcher..."
+brain --write-launcher . >/dev/null
+# Matches writeLauncher in src/index.ts: .command on macOS (Finder runs it on double-click;
+# a plain .sh just opens in a text editor there), .sh on Linux.
+if [ "$(uname -s)" = "Darwin" ]; then
+  LAUNCHER="$(dirname "${BASH_SOURCE[0]}")/start-brain.command"
+else
+  LAUNCHER="$(dirname "${BASH_SOURCE[0]}")/start-brain.sh"
+fi
+
+echo
+echo "BrAIn is installed. Simplest way to use it on a project: drag-and-drop"
+echo "  $LAUNCHER"
+echo "into that project's folder and double-click it there (on Linux: run it from a terminal"
+echo "instead). First time in a new folder, it asks which profile that project is for (dev or"
+echo "notes) and sets up the Claude Code MCP server for that project too — then it's ready, every"
+echo "time after that just opens the browser."

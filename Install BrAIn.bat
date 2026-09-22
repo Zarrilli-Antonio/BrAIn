@@ -25,11 +25,19 @@ if errorlevel 1 (
 )
 
 echo.
-echo BrAIn is installed. Next, for any project you want to use it with:
+echo Writing a drag-anywhere launcher...
+call brain --write-launcher . >nul
+
+echo.
+echo BrAIn is installed. Simplest way to use it on a project: drag-and-drop
+echo   "%~dp0Start BrAIn.bat"
+echo into that project's folder and double-click it there. First time in a new folder, it asks
+echo which profile that project is for (dev or notes); after that it just opens the browser.
+echo.
+echo Want BrAIn registered as an MCP server for Claude Code too (so an AI can use it directly)?
 echo   brain --init "C:\path\to\project"
-echo That writes a double-clickable launcher, registers BrAIn as an MCP server for Claude Code, and
-echo asks which profile that project is for (dev or notes) — all in one step. See README.md for
-echo other AI clients (Cursor, Claude Desktop, Windsurf, Cline).
+echo does that in the same step, on top of everything the drag-and-drop launcher does. See
+echo README.md for other AI clients (Cursor, Claude Desktop, Windsurf, Cline).
 pause
 exit /b 0
 
