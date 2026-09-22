@@ -24,7 +24,7 @@ cd BrAIn
 **Windows:** double-click **`Install BrAIn.bat`**.
 **macOS/Linux:** run **`./install.sh`**.
 
-Either one installs everything, builds it, and makes the `brain` command available everywhere on your machine — on macOS/Linux it also adds `brain` to your shell's `PATH` (`~/.zshrc`/`~/.bashrc`) if it isn't there already.
+Either one installs everything, builds it, and makes the `brain` command available everywhere on your machine — on macOS/Linux it also adds `brain` to your shell's `PATH` (`~/.zshrc`/`~/.bashrc`) if it isn't there already. This step is generic — the same `brain` command works on any project; which **profile** a given project uses is chosen per-project (below), not here.
 
 If you'd rather see what's happening, or you're on something else entirely:
 
@@ -86,6 +86,20 @@ brain --mode http --root /path/to/your/project --port 4173
 Then open `http://localhost:4173`. Or skip typing entirely:
 
 **One-command launcher:** run `brain --init /path/to/your/project` once. It drops a ready-made launcher right into that project folder — `Start BrAIn.bat` on Windows, `start-brain.sh` (already executable) on macOS/Linux — run it any time to open the explorer, no path or flags to remember. (This also does the MCP setup above for Claude Code in the same step; add `--no-mcp` if you don't want that.)
+
+It also asks which **profile** this project is for:
+
+- **dev** — the full project explorer: code search, symbols, references. Green/azure brain mark.
+- **notes** — same underlying tools (every MCP tool and API route works identically either way), lighter GUI for a non-code "team memory" project: marketing notes, company docs, that kind of thing. Blue/violet brain mark instead of green/azure, opens on the Docs tab instead of Files, and the Index/MCP tabs (search-index internals, AI tool-call log — dev debugging views) are hidden since they're not useful on a non-code project. Nothing is deleted — switch to `dev` and they're back.
+
+Either way, the header shows **"‹Dev or Notes› - ‹project name›"** (and so does the browser tab title) — so if you've got more than one BrAIn tab open, it's obvious at a glance which project (and which profile) each one is.
+
+The choice is stored per-project (`.brain/profile.json`), not machine-wide — a dev codebase and a marketing notes folder are different projects, each with their own `--root`, so each gets its own answer. Change it anytime:
+
+```
+brain --set-profile notes --root /path/to/your/project   # or dev — changes the stored default for that project
+brain --mode http --root /path/to/your/project --profile notes   # or override just this one run
+```
 
 Once it's open, there are seven tabs (see [screenshot.md](screenshot.md) for what each one looks like):
 

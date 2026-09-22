@@ -27,8 +27,9 @@ if errorlevel 1 (
 echo.
 echo BrAIn is installed. Next, for any project you want to use it with:
 echo   brain --init "C:\path\to\project"
-echo That writes a double-clickable launcher AND registers BrAIn as an MCP server for Claude Code,
-echo both in one step. See README.md for other AI clients (Cursor, Claude Desktop, Windsurf, Cline).
+echo That writes a double-clickable launcher, registers BrAIn as an MCP server for Claude Code, and
+echo asks which profile that project is for (dev or notes) — all in one step. See README.md for
+echo other AI clients (Cursor, Claude Desktop, Windsurf, Cline).
 pause
 exit /b 0
 

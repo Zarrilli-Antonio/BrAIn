@@ -7,6 +7,8 @@ let mode = "files";
 let docsCache = [];
 let graphRAF = null;
 let currentDoc = null;
+let currentProfile = "dev"; // set for real in init(), before anything else runs
+let tabEls = []; // populated in init(), once profile-only tabs are shown/hidden
 
 const ICON_MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
 const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
@@ -76,7 +78,7 @@ async function openFile(relPath) {
   if (mode !== "files") {
     mode = "files";
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === "files"));
-    searchEl.placeholder = "Search code...";
+    searchEl.placeholder = currentProfile === "notes" ? "Search..." : "Search code...";
     await loadTree();
   }
   const r = await fetch("/api/file?path=" + encodeURIComponent(relPath));
@@ -730,8 +732,6 @@ async function loadGraph() {
   })();
 }
 
-const tabEls = Array.from(document.querySelectorAll(".tab"));
-
 function activateTab(tab, { focus = false } = {}) {
   tabEls.forEach((t) => {
     const active = t === tab;
@@ -741,7 +741,7 @@ function activateTab(tab, { focus = false } = {}) {
   });
   if (focus) tab.focus();
   mode = tab.dataset.tab;
-  searchEl.placeholder = mode === "docs" || mode === "memory" || mode === "style" ? "Search docs..." : "Search code...";
+  searchEl.placeholder = mode === "docs" || mode === "memory" || mode === "style" ? "Search docs..." : currentProfile === "notes" ? "Search..." : "Search code...";
   stopGraph();
   stopMcpLogPoll();
   contentEl.innerHTML = "";
@@ -756,19 +756,22 @@ function activateTab(tab, { focus = false } = {}) {
   } else loadGraph();
 }
 
-tabEls.forEach((tab, i) => {
-  tab.onclick = () => activateTab(tab);
-  tab.onkeydown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      activateTab(tab);
-    } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault();
-      const next = tabEls[(i + (e.key === "ArrowRight" ? 1 : -1) + tabEls.length) % tabEls.length];
-      activateTab(next, { focus: true });
-    }
-  };
-});
+function wireTabs() {
+  tabEls = Array.from(document.querySelectorAll(".tab"));
+  tabEls.forEach((tab, i) => {
+    tab.onclick = () => activateTab(tab);
+    tab.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activateTab(tab);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        const next = tabEls[(i + (e.key === "ArrowRight" ? 1 : -1) + tabEls.length) % tabEls.length];
+        activateTab(next, { focus: true });
+      }
+    };
+  });
+}
 
 searchEl.addEventListener("keydown", async (e) => {
   if (e.key !== "Enter" || !searchEl.value.trim()) return;
@@ -809,4 +812,41 @@ events.onmessage = async () => {
   }
 };
 
-loadTree();
+// Sets the accent/light-blob recolor (CSS, see body[data-profile="notes"]), the icon (favicon +
+// header brand mark), the "<Type> - <project>" label, which dev-only tabs are even shown, and
+// which tab opens by default — everything that tells apart the "dev" and "notes" profiles, and
+// which project a given BrAIn is actually pointed at. Tabs are built (wireTabs) only after this
+// profile-driven DOM trimming, so a hidden tab is never in tabEls to begin with.
+async function init() {
+  let profile = "dev";
+  let projectName = "";
+  try {
+    ({ profile, projectName } = await (await fetch("/api/profile")).json());
+  } catch {
+    // API not reachable yet at first paint — stays on the default ("dev") look, unlabeled
+  }
+  currentProfile = profile;
+
+  const typeLabel = profile === "notes" ? "Notes" : "Dev";
+  if (profile === "notes") {
+    document.body.dataset.profile = profile;
+    document.getElementById("favicon").href = "favicon-notes.svg";
+    document.getElementById("brandMark").src = "favicon-notes.svg";
+    // Index (search-index internals) and MCP (AI tool-call log) are debugging views for a
+    // codebase — noise on a notes project. Still reachable by switching back to dev if wanted:
+    // `brain --mode http --profile dev`.
+    document.querySelector('.tab[data-tab="index"]')?.remove();
+    document.querySelector('.tab[data-tab="mcp"]')?.remove();
+  }
+  document.title = `BrAIn ${typeLabel}${projectName ? " - " + projectName : ""}`;
+  document.getElementById("brandLabel").textContent = projectName ? `${typeLabel} - ${projectName}` : typeLabel;
+
+  wireTabs();
+  if (profile === "notes") {
+    // Docs is where a notes project's actual content lives — a better landing tab than Files.
+    activateTab(document.querySelector('.tab[data-tab="docs"]'));
+  } else {
+    loadTree();
+  }
+}
+init();

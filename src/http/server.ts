@@ -6,16 +6,24 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { makeTools } from "../core/tools.js";
 import { watchDocs } from "../core/docs.js";
+import { Profile, readProfile } from "../core/profile.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** Plain REST connector for AI platforms without MCP support, plus static GUI explorer.
  *  Returns the listening server (port 0 lets the OS pick a free one — used by tests) so a
- *  caller can inspect the actual bound port or close it; index.ts's own call ignores it. */
-export function runHttp(root: string, port = 4173, open = false): Promise<Server> {
+ *  caller can inspect the actual bound port or close it; index.ts's own call ignores it.
+ *  `profile` defaults to whatever was stored for this project (`--profile` on the CLI overrides
+ *  it for just that run) — see core/profile.ts. It only changes what the GUI looks like
+ *  (`GET /api/profile`); every tool and API route behaves identically regardless. */
+export function runHttp(root: string, port = 4173, open = false, profile: Profile = readProfile(root)): Promise<Server> {
   const tools = makeTools(root);
   const app = express();
   app.use(express.json());
+
+  app.get("/api/profile", (_req, res) => {
+    res.json({ profile, projectName: path.basename(root) });
+  });
 
   const sseClients = new Set<express.Response>();
   let debounce: NodeJS.Timeout | null = null;

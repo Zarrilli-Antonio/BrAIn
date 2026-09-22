@@ -2,11 +2,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import readline from "node:readline/promises";
 import { runMcp } from "./mcp/server.js";
 import { runHttp } from "./http/server.js";
 import { installMcpConfig, resolveClientConfigPath } from "./core/mcp-config.js";
 import { instructionsPathForClient, ensureAgentInstructions } from "./core/agent-instructions.js";
 import { checkForUpdate } from "./core/update-check.js";
+import { isProfile, readProfile, writeProfile, Profile } from "./core/profile.js";
 
 // Where BrAIn itself is installed (dist/index.js's own folder, one level up) — not `--root`,
 // which is the unrelated project a user is pointing BrAIn *at*. This is what should be checked
@@ -43,6 +45,8 @@ function parseArgs() {
     client: get("--client"),
     configPath: get("--config"),
     name: get("--name") ?? "brain",
+    profileFlag: get("--profile"),
+    setProfile: get("--set-profile"),
   };
 }
 
@@ -104,6 +108,27 @@ function launcherSh(port: number): string {
   ].join("\n");
 }
 
+/** Asks which profile this *project* is for — dev (full code explorer) or notes (lightweight
+ *  memory/docs area, different accent color) — and stores the answer in that project's own
+ *  `.brain/profile.json`. Non-interactive (no TTY, e.g. a CI/scripted --init) silently defaults
+ *  to dev rather than hanging on a prompt nobody can answer. */
+async function promptAndSetProfile(projectRoot: string): Promise<void> {
+  if (!process.stdin.isTTY) {
+    writeProfile(projectRoot, "dev");
+    console.log('Profile for this project: dev (non-interactive — switch anytime with: brain --set-profile notes --root "' + projectRoot + '")');
+    return;
+  }
+  console.log("\nWhich version of BrAIn is this project for?");
+  console.log("  1) dev   - full project explorer: code search, symbols, references (default)");
+  console.log("  2) notes - lightweight memory/docs area for non-code projects (marketing, company notes, ...)");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question("Choice [1]: ");
+  rl.close();
+  const profile: Profile = answer.trim() === "2" ? "notes" : "dev";
+  writeProfile(projectRoot, profile);
+  console.log(`Profile set to "${profile}" for this project. Override any single run with: brain --mode http --profile ${profile === "dev" ? "notes" : "dev"}`);
+}
+
 /** `client` is undefined when the caller passed --config directly instead of a known --client
  *  name — there's then no known instructions-file format to write, so that step is skipped. */
 function installMcpAndReport(configPath: string, projectRoot: string, name: string, client?: string): void {
@@ -117,29 +142,43 @@ function installMcpAndReport(configPath: string, projectRoot: string, name: stri
   console.log("Restart the client for it to pick up the change.");
 }
 
-const { mode, root, port, open, init, noMcp, installMcp, client, configPath, name } = parseArgs();
+const { mode, root, port, open, init, noMcp, installMcp, client, configPath, name, profileFlag, setProfile } = parseArgs();
 
-if (installMcp) {
+if (setProfile) {
+  if (!isProfile(setProfile)) {
+    console.error(`Unknown --set-profile "${setProfile}". Use "dev" or "notes".`);
+    process.exitCode = 1;
+  } else {
+    writeProfile(root, setProfile);
+    console.log(`Profile for ${root} set to "${setProfile}". Override any single run with: brain --mode http --root "${root}" --profile ${setProfile === "dev" ? "notes" : "dev"}`);
+  }
+} else if (installMcp) {
   const resolvedClient = configPath ? client : (client ?? "claude-code");
   const target = configPath ?? resolveClientConfigPath(resolvedClient!, root);
   installMcpAndReport(target, root, name, resolvedClient);
 } else if (init) {
+  const initRoot = path.resolve(init);
   writeLauncher(init, port);
   // Claude Code reads .mcp.json straight from the project folder, so the one command that sets
   // up the human-facing launcher also wires up the AI-facing side by default — --no-mcp skips it
   // (e.g. for a client whose config doesn't live in the project itself).
   if (!noMcp) {
     try {
-      installMcpAndReport(path.join(path.resolve(init), ".mcp.json"), path.resolve(init), name, "claude-code");
+      installMcpAndReport(path.join(initRoot, ".mcp.json"), initRoot, name, "claude-code");
     } catch (e) {
       console.error(`Launcher written, but MCP config setup failed: ${(e as Error).message}`);
     }
   }
+  await promptAndSetProfile(initRoot);
 } else if (mode === "mcp") {
   // stdout is the MCP JSON-RPC channel here — any stray console.log would corrupt it, so no
   // update notice in this mode (checkForUpdate itself is skipped, not just its output).
   runMcp(root);
 } else {
+  if (profileFlag && !isProfile(profileFlag)) {
+    console.error(`Unknown --profile "${profileFlag}". Use "dev" or "notes". Falling back to the stored default.`);
+  }
+  const profile = profileFlag && isProfile(profileFlag) ? profileFlag : readProfile(root);
   notifyIfUpdateAvailable();
-  runHttp(root, port, open);
+  runHttp(root, port, open, profile);
 }

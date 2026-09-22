@@ -34,5 +34,6 @@ esac
 echo
 echo "BrAIn is installed. Next, for any project you want to use it with:"
 echo "  brain --init /path/to/project"
-echo "That writes a launcher script AND registers BrAIn as an MCP server for Claude Code, both in"
-echo "one step. See README.md for other AI clients (Cursor, Claude Desktop, Windsurf, Cline)."
+echo "That writes a launcher script, registers BrAIn as an MCP server for Claude Code, and asks"
+echo "which profile that project is for (dev or notes) — all in one step. See README.md for other"
+echo "AI clients (Cursor, Claude Desktop, Windsurf, Cline)."

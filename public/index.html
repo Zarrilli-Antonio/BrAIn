@@ -4,12 +4,21 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BrAIn — Project Explorer</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link id="favicon" rel="icon" type="image/svg+xml" href="favicon.svg" />
 <style>
   :root {
-    --bg:#000000; --text:#eafbe9; --muted:#7fae82; --green:#8cff6b;
+    --bg:#000000; --text:#eafbe9; --muted:#7fae82; --green:#8cff6b; --green-rgb:140 255 107;
     --glass:rgba(3,10,5,0.30); --glass-border:rgba(140,255,107,0.18); --glass-hover:rgba(140,255,107,0.10);
     --radius:4px;
+  }
+  /* "notes" profile (brain --profile notes, or a machine-wide default set at install time via
+     the "Which version?" prompt): same layout/system, different accent — set by app.js reading
+     /api/profile and adding this attribute to <body>. The ambient light blobs below are recolored
+     in one shot with a hue-rotate filter (.lights rule near the end) rather than restating all 10
+     of their individually-tuned gradients here. */
+  body[data-profile="notes"] {
+    --green:#5ec8ff; --green-rgb:94 200 255; --muted:#7f96ae; --glass:rgba(3,6,10,0.30);
+    --glass-border:rgba(94,200,255,0.18); --glass-hover:rgba(94,200,255,0.10);
   }
   * { box-sizing: border-box; }
   html, body { height:100%; }
@@ -82,15 +91,20 @@
   @media (prefers-reduced-motion: reduce) {
     .light { animation:none; }
   }
+  /* Recolors all 10 individually-tuned ambient blobs in one step for the "notes" profile,
+     instead of restating each gradient — precise hue accuracy doesn't matter at 70px blur and
+     low opacity, only the overall wash does. */
+  body[data-profile="notes"] .lights { filter:hue-rotate(130deg) saturate(0.85); }
   aside, main {
     background:var(--glass); backdrop-filter: blur(28px) saturate(140%); -webkit-backdrop-filter: blur(28px) saturate(140%);
     border:1px solid var(--glass-border); border-radius:var(--radius);
-    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(140,255,107,0.08);
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgb(var(--green-rgb) / 0.08);
   }
   aside { width:280px; overflow-y:auto; padding:14px; }
   main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
   header { padding:12px 20px; border-bottom:1px solid var(--glass-border); display:flex; gap:12px; align-items:center; }
   .brand-mark { flex:none; }
+  .brand-label { flex:none; color:var(--muted); font-size:12px; font-weight:500; white-space:nowrap; }
   .icon-btn {
     display:none; align-items:center; justify-content:center; width:40px; height:40px; flex:none;
     background:#000000; border:1px solid var(--glass-border); color:var(--text); cursor:pointer; border-radius:var(--radius);
@@ -100,8 +114,8 @@
     flex:1; background:#000000; border:1px solid var(--glass-border); color:var(--text);
     padding:8px 16px; border-radius:var(--radius); font-size:13px; transition:border-color .15s ease, box-shadow .15s ease;
   }
-  header input:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(140,255,107,0.15); }
-  ::selection { background:rgba(140,255,107,0.35); color:var(--text); }
+  header input:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0.15); }
+  ::selection { background:rgb(var(--green-rgb) / 0.35); color:var(--text); }
   ::placeholder { color:var(--muted); opacity:1; }
   input, textarea { caret-color:var(--green); }
   html { scrollbar-color:var(--glass-border) transparent; scrollbar-width:thin; }
@@ -111,10 +125,10 @@
   }
   #content { flex:1; overflow:auto; padding:20px; font-family: ui-monospace, monospace; font-size:13px; }
   #content.code { white-space:pre-wrap; }
-  #content.code a[data-path] { color:var(--green); text-decoration:none; border-bottom:1px dashed rgba(140,255,107,0.5); cursor:pointer; }
+  #content.code a[data-path] { color:var(--green); text-decoration:none; border-bottom:1px dashed rgb(var(--green-rgb) / 0.5); cursor:pointer; }
   #content.doc { white-space:normal; font-family: system-ui, sans-serif; font-size:14px; line-height:1.6; }
   #content.doc h1, #content.doc h2, #content.doc h3 { color:var(--text); border-bottom:1px solid var(--glass-border); padding-bottom:6px; }
-  #content.doc a.wikilink { color:var(--green); text-decoration:none; border-bottom:1px dashed rgba(140,255,107,0.5); cursor:pointer; }
+  #content.doc a.wikilink { color:var(--green); text-decoration:none; border-bottom:1px dashed rgb(var(--green-rgb) / 0.5); cursor:pointer; }
   #content.doc code { background:#000000; border:1px solid var(--glass-border); padding:2px 6px; border-radius:var(--radius); }
   #content.doc pre { background:#000000; border:1px solid var(--glass-border); padding:12px; border-radius:var(--radius); overflow:auto; }
   #content.graph { padding:0; position:relative; }
@@ -148,8 +162,8 @@
   }
   .content-in { animation:contentIn 200ms cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes savedFlash {
-    0% { box-shadow:0 0 0 3px rgba(140,255,107,0.35); }
-    100% { box-shadow:0 0 0 3px rgba(140,255,107,0); }
+    0% { box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0.35); }
+    100% { box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0); }
   }
   .saved-flash { animation:savedFlash 450ms ease-out; border-radius:var(--radius); }
   @media (prefers-reduced-motion: reduce) {
@@ -182,7 +196,7 @@
     padding:6px 10px; border-radius:var(--radius); font-size:13px; font-family:ui-monospace,monospace;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
-  .toolbar input:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(140,255,107,0.15); }
+  .toolbar input:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0.15); }
   .index-table { width:100%; border-collapse:collapse; font-size:13px; }
   .index-table th, .index-table td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--glass-border); }
   .index-table th { color:var(--muted); font-weight:500; }
@@ -200,7 +214,7 @@
     width:100%; height:70vh; background:#000000; color:var(--text); border:1px solid var(--glass-border);
     border-radius:var(--radius); padding:12px; font-family:ui-monospace,monospace; font-size:13px; resize:vertical;
   }
-  textarea.editor:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(140,255,107,0.12); }
+  textarea.editor:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0.12); }
   ::-webkit-scrollbar { width:10px; height:10px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--glass-border); border-radius:var(--radius); }
@@ -219,7 +233,7 @@
     width:min(420px, 100%); background:var(--glass); backdrop-filter:blur(28px) saturate(140%);
     -webkit-backdrop-filter:blur(28px) saturate(140%); border:1px solid var(--glass-border);
     border-radius:var(--radius); padding:20px;
-    box-shadow:0 24px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(140,255,107,0.08);
+    box-shadow:0 24px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgb(var(--green-rgb) / 0.08);
   }
   .modal h2 { margin:0 0 16px; font-size:15px; font-weight:500; }
   .modal label { display:block; font-size:13px; color:var(--muted); margin-bottom:14px; }
@@ -228,7 +242,7 @@
     color:var(--text); padding:8px 12px; border-radius:var(--radius); font-size:13px; font-family:ui-monospace,monospace;
   }
   .modal select:focus, .modal input:focus {
-    outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(140,255,107,0.15);
+    outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgb(var(--green-rgb) / 0.15);
   }
   .modal .toolbar { margin:6px 0 0; justify-content:flex-end; }
   @media (max-width: 860px) {
@@ -290,7 +304,8 @@
     <div class="tab" data-tab="mcp" role="tab" aria-selected="false" tabindex="-1">MCP</div>
   </div>
   <header>
-    <img class="brand-mark" src="favicon.svg" alt="BrAIn" width="28" height="28" />
+    <img id="brandMark" class="brand-mark" src="favicon.svg" alt="BrAIn" width="28" height="28" />
+    <span id="brandLabel" class="brand-label"></span>
     <button id="menuToggle" class="icon-btn" aria-label="Toggle sidebar" aria-expanded="false"></button>
     <input id="search" placeholder="Search code..." aria-label="Search code" />
   </header>

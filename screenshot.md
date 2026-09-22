@@ -1,10 +1,20 @@
 # BrAIn — Interface Overview
 
-BrAIn runs as a local web app (`brain --mode http --root <project> --port 4173`, or the `Start BrAIn.bat` / `start-brain.sh` launcher). Opening `http://localhost:4173` shows a two-pane shell: a 280px sidebar on the left and a main content panel on the right, both rendered as dark "glass" surfaces (near-black, blurred, hairline green border) floating over a slowly drifting green/azure/violet ambient background. Below 860px width the sidebar collapses into a slide-in drawer opened with a hamburger button.
+BrAIn runs as a local web app (`brain --mode http --root <project> --port 4173`, or the `Start BrAIn.bat` / `start-brain.sh` launcher). Opening `http://localhost:4173` shows a two-pane shell: a 280px sidebar on the left and a main content panel on the right, both rendered as dark "glass" surfaces (near-black, blurred, hairline accent-colored border) floating over a slowly drifting ambient background. Below 860px width the sidebar collapses into a slide-in drawer opened with a hamburger button.
 
-The sidebar holds seven tabs. Selecting one swaps the main panel's content; the active tab is filled solid green.
+The sidebar holds seven tabs. Selecting one swaps the main panel's content; the active tab is filled with the accent color.
 
 The search bar above the content panel is context-aware: on Files/Graph/Index/MCP it searches code (`search_code`), on Docs/Memory/Style Guide it searches documentation content (`search_docs`) instead. Either way, results are clickable — a code hit opens that file for editing, a doc hit opens that doc.
+
+## Profiles: dev vs notes
+
+Every screenshot below is the **dev** profile (green/azure, the brain-mark icon, seven tabs, opens on Files) — the default, and what you get pointing BrAIn at an actual codebase. Point it at a non-code project instead (marketing notes, company docs) and the **notes** profile swaps the accent to blue/violet, recolors the same brain mark, opens on Docs instead of Files, and drops the Index/MCP tabs (dev-debugging views, not useful on a non-code project — switch back to `dev` and they're there). The underlying tools are identical either way. The header (and the browser tab title) always reads **"‹Dev or Notes› - ‹project name›"**, so several BrAIn tabs open at once stay easy to tell apart.
+
+| dev | notes |
+|---|---|
+| ![Dev profile](screenshots/profile-dev.png) | ![Notes profile](screenshots/profile-notes.png) |
+
+Which profile a project uses is asked once, at `brain --init`, and stored per-project (`.brain/profile.json`) — see the main README for how to change it later.
 
 ## Files
 
@@ -44,6 +54,6 @@ A table of what the search index actually contains: every indexed file, its line
 
 ## MCP
 
-A live log of every tool call an AI has made against this project through MCP: which tool, with what arguments, whether it succeeded, and how long it took. Status is shown as plain text ("ok" / "error"), not color — BrAIn's interface reserves color exclusively for its green accent.
+A live log of every tool call an AI has made against this project through MCP: which tool, with what arguments, whether it succeeded, and how long it took. Status is shown as plain text ("ok" / "error"), not color — BrAIn's interface reserves color exclusively for its accent (green for dev, blue/violet for notes — see "Profiles" above).
 
 ![MCP tab](screenshots/mcp.png)

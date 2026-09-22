@@ -15,6 +15,7 @@ import { findReferences, findDefinition } from "./references.js";
 import { installMcpConfig, resolveClientConfigPath } from "./mcp-config.js";
 import { instructionsPathForClient, ensureAgentInstructions } from "./agent-instructions.js";
 import { checkForUpdate } from "./update-check.js";
+import { readProfile, writeProfile, isProfile, profileConfigPath } from "./profile.js";
 
 function mkTmpProject(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "brain-test-"));
@@ -389,6 +390,34 @@ test("renameDoc moves a doc, refuses a missing source, an existing dest, or trav
 test("checkForUpdate returns null (never throws) for a plain folder that isn't a git repo", async () => {
   const root = mkTmpProject();
   assert.equal(await checkForUpdate(root), null);
+});
+
+test("readProfile defaults to \"dev\" when unset, missing, or corrupt; writeProfile round-trips, scoped per project root", () => {
+  const root = mkTmpProject();
+
+  assert.equal(readProfile(root), "dev"); // never set for this project yet
+
+  writeProfile(root, "notes");
+  assert.equal(readProfile(root), "notes");
+
+  writeProfile(root, "dev");
+  assert.equal(readProfile(root), "dev");
+
+  fs.writeFileSync(profileConfigPath(root), "not valid json");
+  assert.equal(readProfile(root), "dev");
+
+  fs.writeFileSync(profileConfigPath(root), JSON.stringify({ profile: "something-else" }));
+  assert.equal(readProfile(root), "dev");
+
+  const otherRoot = mkTmpProject();
+  writeProfile(root, "notes");
+  assert.equal(readProfile(otherRoot), "dev"); // a different project's profile is untouched
+});
+
+test("isProfile accepts only the known profile names", () => {
+  assert.equal(isProfile("dev"), true);
+  assert.equal(isProfile("notes"), true);
+  assert.equal(isProfile("marketing"), false);
 });
 
 test("getDocsGraph links docs via [[wikilinks]]", () => {
