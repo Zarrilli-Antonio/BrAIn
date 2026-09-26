@@ -2,10 +2,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { runMcp } from "./mcp/server.js";
 import { runHttp } from "./http/server.js";
+import { writeLauncher } from "./core/launcher.js";
 import { installMcpConfig, resolveClientConfigPath } from "./core/mcp-config.js";
 import { instructionsPathForClient, ensureAgentInstructions } from "./core/agent-instructions.js";
 import { checkForUpdate } from "./core/update-check.js";
@@ -50,78 +50,6 @@ function parseArgs() {
     profileFlag: get("--profile"),
     setProfile: get("--set-profile"),
   };
-}
-
-/**
- * Writes a double-clickable launcher into a project folder: starts BrAIn scoped to that folder, opens the browser.
- * Calls the global `brain` command (from `npm link` in the BrAIn repo) instead of a hardcoded path, so the same
- * launcher works when copied into any project on this machine, regardless of where BrAIn itself is installed.
- * Writes a `.bat` on Windows, a `.command` on macOS (Finder runs it in Terminal on double-click — a plain `.sh`
- * just opens in a text editor there), a `.sh` (marked executable) on Linux, where `.command` has no such meaning.
- */
-function writeLauncher(targetDir: string, port: number): void {
-  const dir = path.resolve(targetDir);
-  fs.mkdirSync(dir, { recursive: true });
-  const platform = process.platform;
-  const filename = platform === "win32" ? "Start BrAIn.bat" : platform === "darwin" ? "start-brain.command" : "start-brain.sh";
-  const launcherPath = path.join(dir, filename);
-  fs.writeFileSync(launcherPath, platform === "win32" ? launcherBat(port) : launcherSh(port), "utf-8");
-  if (platform !== "win32") fs.chmodSync(launcherPath, 0o755);
-  if (platform === "darwin") {
-    // Best-effort: clears the quarantine flag if this launcher (or the repo it's copied from)
-    // was extracted from a downloaded zip rather than `git clone`d — without it, Gatekeeper
-    // blocks the very first double-click ("Apple cannot check it for malicious software").
-    // A no-op, not an error, when nothing is quarantined; failing silently either way is fine —
-    // worst case the user sees that same one-time warning and works around it by hand (README).
-    try {
-      execFileSync("xattr", ["-d", "com.apple.quarantine", launcherPath], { stdio: "ignore" });
-    } catch {
-      // not quarantined, or `xattr` unavailable — nothing to clear
-    }
-  }
-  console.log(`Launcher written: ${launcherPath}`);
-  console.log(
-    platform === "linux"
-      ? `Run it (./${path.basename(launcherPath)}) to start BrAIn for this project (root: ${dir}).`
-      : `Double-click it to start BrAIn for this project (root: ${dir}).`,
-  );
-}
-
-function launcherBat(port: number): string {
-  // "%~dp0." not "%~dp0": a trailing backslash right before the closing quote escapes the quote in cmd.exe parsing.
-  return [
-    "@echo off",
-    "where brain >nul 2>nul",
-    "if errorlevel 1 (",
-    "  echo BrAIn is not installed globally yet.",
-    "  echo Run this once from the BrAIn project folder: npm link",
-    "  pause",
-    "  exit /b 1",
-    ")",
-    `brain --mode http --root "%~dp0." --port ${port} --open`,
-    "if errorlevel 1 (",
-    "  echo.",
-    "  echo BrAIn failed to start.",
-    "  pause",
-    ")",
-    "",
-  ].join("\r\n");
-}
-
-function launcherSh(port: number): string {
-  return [
-    "#!/usr/bin/env bash",
-    'DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"',
-    "",
-    "if ! command -v brain >/dev/null 2>&1; then",
-    '  echo "BrAIn is not installed globally yet."',
-    '  echo "Run this once from the BrAIn project folder: ./install.sh (or npm link)"',
-    "  exit 1",
-    "fi",
-    "",
-    `brain --mode http --root "$DIR" --port ${port} --open`,
-    "",
-  ].join("\n");
 }
 
 /** Asks which profile this *project* is for — dev (full code explorer) or notes (lightweight

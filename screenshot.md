@@ -1,6 +1,20 @@
 # BrAIn — Interface Overview
 
-BrAIn runs as a local web app (`brain --mode http --root <project> --port 4173`, or the `Start BrAIn.bat` / `start-brain.sh` launcher). Opening `http://localhost:4173` shows a two-pane shell: a 280px sidebar on the left and a main content panel on the right, both rendered as dark "glass" surfaces (near-black, blurred, hairline accent-colored border) floating over a slowly drifting ambient background. Below 860px width the sidebar collapses into a slide-in drawer opened with a hamburger button.
+BrAIn runs as a local web app (`brain --mode http --root <project> --port 4173`, or the `Start BrAIn.bat` / `start-brain.sh` launcher) — or as the desktop app described first below, which is a wizard in front of that same server. Opening `http://localhost:4173` shows a two-pane shell: a 280px sidebar on the left and a main content panel on the right, both rendered as dark "glass" surfaces (near-black, blurred, hairline accent-colored border) floating over a slowly drifting ambient background. Below 860px width the sidebar collapses into a slide-in drawer opened with a hamburger button.
+
+## Desktop app
+
+No terminal at all: pick a folder with a native picker, choose dev/notes and which AI assistant, and BrAIn is set up and running in its own window. "Open Existing Projects" lists everything set up before — each row shows its profile and AI assistant, both changeable in place (dev/notes recolors the row's border to match; switching AI writes that assistant's config/instructions file alongside whatever's already there, it doesn't delete the previous one), plus Open/Remove. Several projects can be open at once, each in its own window on its own port.
+
+| Welcome | Your Projects |
+|---|---|
+| ![Desktop app welcome screen](screenshots/app-welcome.png) | ![Desktop app projects panel](screenshots/app-projects.png) |
+
+| Choose folder | Dev/notes + AI assistant | Done |
+|---|---|---|
+| ![Desktop app folder picker](screenshots/app-folder.png) | ![Desktop app profile and AI picker](screenshots/app-profile-ai.png) | ![Desktop app done screen](screenshots/app-done.png) |
+
+See [`desktop/README.md`](desktop/README.md) for how to build/run it and how each step maps to the concepts below.
 
 The sidebar holds seven tabs. Selecting one swaps the main panel's content; the active tab is filled with the accent color.
 

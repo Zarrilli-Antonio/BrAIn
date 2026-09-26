@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BrAIn</title>
+<style>
+  /* Same dark/glass system as BrAIn's own GUI (public/index.html) — black bg, tinted green glass
+     border, 4px radius — so the desktop app and the browser GUI it hands off to feel like one product. */
+  :root {
+    --bg:#000000; --text:#eafbe9; --muted:#7fae82; --green:#8cff6b; --blue:#6bcaff;
+    --glass-border:rgba(140,255,107,0.18); --glass-hover:rgba(140,255,107,0.10);
+    --glass-border-blue:rgba(107,202,255,0.35); --glass-hover-blue:rgba(107,202,255,0.10);
+    --radius:4px;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body {
+    background:var(--bg); color:var(--text); font-family:system-ui,sans-serif;
+    display:flex; flex-direction:column; padding:28px; -webkit-app-region:drag;
+  }
+  button, input, .step { -webkit-app-region:no-drag; }
+  h1 { font-size:18px; margin:0 0 6px; }
+  p { color:var(--muted); font-size:13px; line-height:1.5; margin:0 0 18px; }
+  .step { display:none; flex:1; flex-direction:column; }
+  .step.active { display:flex; }
+  .spacer { flex:1; }
+  button {
+    background:#000; border:1px solid var(--glass-border); color:var(--text);
+    padding:10px 18px; border-radius:var(--radius); font-size:13px; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  button:hover:not(:disabled) { background:var(--green); color:#000; border-color:var(--green); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--green); color:#000; border-color:var(--green); font-weight:600; }
+  button.primary:hover:not(:disabled) { filter:brightness(1.1); }
+  .row { display:flex; gap:10px; }
+  .folder-box {
+    background:#0a0a0a; border:1px solid var(--glass-border); border-radius:var(--radius);
+    padding:10px 12px; font-family:ui-monospace,monospace; font-size:12px; color:var(--muted);
+    margin-bottom:14px; min-height:38px; display:flex; align-items:center; word-break:break-all;
+  }
+  .profile-card {
+    border:1px solid var(--glass-border); border-radius:var(--radius); padding:14px; margin-bottom:10px;
+    cursor:pointer; transition:border-color .15s ease, background .15s ease;
+  }
+  .profile-card:hover { background:var(--glass-hover); }
+  .profile-card.selected { border-color:var(--green); background:var(--glass-hover); }
+  .profile-card h3 { margin:0 0 4px; font-size:14px; }
+  .profile-card p { margin:0; }
+  #log { font-family:ui-monospace,monospace; font-size:12px; color:var(--muted); white-space:pre-wrap; }
+  #error { color:#ff8a80; font-size:12px; margin-top:10px; }
+  #project-list { flex:1; overflow-y:auto; margin-bottom:14px; }
+  .project-row {
+    display:flex; align-items:center; gap:10px; border:1px solid var(--glass-border);
+    border-radius:var(--radius); padding:10px 12px; margin-bottom:8px;
+  }
+  .project-info { flex:1; min-width:0; }
+  .project-name { font-size:13px; font-weight:600; }
+  .project-path { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge {
+    font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
+    border:1px solid var(--glass-border); border-radius:3px; padding:2px 6px; flex:none;
+  }
+  .badge.running { color:var(--green); border-color:var(--green); }
+  .project-row.notes { border-color:var(--glass-border-blue); }
+  .project-row.notes:hover { background:var(--glass-hover-blue); }
+  .project-row.notes .badge { color:var(--blue); border-color:var(--glass-border-blue); }
+  .project-row.notes .badge.running { border-color:var(--blue); }
+  .ai-pill {
+    border:1px solid var(--glass-border); border-radius:var(--radius); padding:8px 14px;
+    font-size:12px; cursor:pointer; transition:border-color .15s ease, background .15s ease;
+  }
+  .ai-pill:hover { background:var(--glass-hover); }
+  .ai-pill.selected { border-color:var(--green); background:var(--glass-hover); color:var(--green); }
+  .ai-select {
+    background:#000; color:var(--text); border:1px solid var(--glass-border); border-radius:3px;
+    font-size:11px; padding:2px 4px; flex:none;
+  }
+  .project-row button { padding:6px 10px; font-size:12px; flex:none; }
+  .empty-hint { color:var(--muted); font-size:13px; text-align:center; padding:30px 0; }
+</style>
+</head>
+<body>
+
+<div class="step active" id="step-welcome">
+  <h1>Welcome to BrAIn</h1>
+  <p>Set up a new project, or open one you've already set up before — pick a folder, choose dev or notes, and it starts running, no terminal needed.</p>
+  <div class="spacer"></div>
+  <div class="row">
+    <button id="btn-open-existing">Open Existing Projects</button>
+    <button class="primary" id="btn-start">Set Up a New Project</button>
+  </div>
+</div>
+
+<div class="step" id="step-projects">
+  <h1>Your Projects</h1>
+  <p>Open as many as you like — each one gets its own window.</p>
+  <div id="project-list"></div>
+  <div class="spacer"></div>
+  <div class="row">
+    <button id="btn-projects-back">Back</button>
+    <button class="primary" id="btn-add-folder">+ Add Folder</button>
+  </div>
+</div>
+
+<div class="step" id="step-folder">
+  <h1>Choose a project folder</h1>
+  <p>This is the project BrAIn will explore and keep notes for.</p>
+  <div class="folder-box" id="folder-path">No folder chosen yet.</div>
+  <button id="btn-choose-folder">Choose Folder…</button>
+  <div class="spacer"></div>
+  <div class="row">
+    <button id="btn-folder-back">Back</button>
+    <button class="primary" id="btn-folder-next" disabled>Next</button>
+  </div>
+</div>
+
+<div class="step" id="step-profile">
+  <h1>What's this project for?</h1>
+  <p>Changes the look and which tabs show up — the underlying tools are the same either way. Switch anytime later.</p>
+  <div class="profile-card selected" data-profile="dev">
+    <h3>Dev</h3>
+    <p>Full project explorer: code search, symbols, references.</p>
+  </div>
+  <div class="profile-card" data-profile="notes">
+    <h3>Notes</h3>
+    <p>Lightweight memory/docs area for non-code projects — marketing notes, company docs, that kind of thing.</p>
+  </div>
+  <p style="margin-top:4px">Which AI assistant?</p>
+  <div class="row" id="ai-client-row" style="margin-bottom:14px">
+    <div class="ai-pill selected" data-ai="claude-code">Claude Code</div>
+    <div class="ai-pill" data-ai="cursor">Cursor</div>
+    <div class="ai-pill" data-ai="gemini">Gemini</div>
+    <div class="ai-pill" data-ai="local">Local model</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="row">
+    <button id="btn-profile-back">Back</button>
+    <button class="primary" id="btn-setup">Set Up BrAIn</button>
+  </div>
+</div>
+
+<div class="step" id="step-done">
+  <h1 id="done-title">Setting up…</h1>
+  <div id="log"></div>
+  <div id="error"></div>
+  <div class="spacer"></div>
+  <div class="row">
+    <button id="btn-done-back-to-projects" style="display:none">Back to Projects</button>
+    <button class="primary" id="btn-quit" style="display:none">Quit</button>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

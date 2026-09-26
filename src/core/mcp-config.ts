@@ -10,13 +10,15 @@ export function resolveClientConfigPath(client: string, projectRoot: string): st
       return path.join(projectRoot, ".mcp.json");
     case "cursor":
       return path.join(projectRoot, ".cursor", "mcp.json");
+    case "gemini":
+      return path.join(projectRoot, ".gemini", "settings.json");
     case "claude-desktop": {
       const appData = process.env.APPDATA;
       if (!appData) throw new Error("--client claude-desktop needs %APPDATA% (Windows); pass --config <path> instead");
       return path.join(appData, "Claude", "claude_desktop_config.json");
     }
     default:
-      throw new Error(`Unknown --client "${client}". Use claude-code, cursor, claude-desktop, or pass --config <path> directly.`);
+      throw new Error(`Unknown --client "${client}". Use claude-code, cursor, gemini, claude-desktop, or pass --config <path> directly.`);
   }
 }
 

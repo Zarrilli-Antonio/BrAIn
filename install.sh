@@ -34,18 +34,11 @@ esac
 echo
 echo "Writing a drag-anywhere launcher..."
 brain --write-launcher . >/dev/null
-# Matches writeLauncher in src/index.ts: .command on macOS (Finder runs it on double-click;
-# a plain .sh just opens in a text editor there), .sh on Linux.
-if [ "$(uname -s)" = "Darwin" ]; then
-  LAUNCHER="$(dirname "${BASH_SOURCE[0]}")/start-brain.command"
-else
-  LAUNCHER="$(dirname "${BASH_SOURCE[0]}")/start-brain.sh"
-fi
+LAUNCHER="$(dirname "${BASH_SOURCE[0]}")/start-brain.sh"
 
 echo
 echo "BrAIn is installed. Simplest way to use it on a project: drag-and-drop"
 echo "  $LAUNCHER"
-echo "into that project's folder and double-click it there (on Linux: run it from a terminal"
-echo "instead). First time in a new folder, it asks which profile that project is for (dev or"
-echo "notes) and sets up the Claude Code MCP server for that project too — then it's ready, every"
-echo "time after that just opens the browser."
+echo "into that project's folder, then from a terminal there: ./start-brain.sh"
+echo "First time in a new folder, it asks which profile that project is for (dev or notes) and"
+echo "sets up the Claude Code MCP server for that project too — after that it just opens the browser."

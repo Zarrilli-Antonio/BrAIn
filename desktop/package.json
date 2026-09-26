@@ -1,0 +1,53 @@
+{
+  "name": "brain-installer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop app for BrAIn: pick a project folder, choose dev/notes, and it's set up and running.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dist:mac": "npm run build && electron-builder --mac zip"
+  },
+  "dependencies": {
+    "brain-mcp": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.7.2"
+  },
+  "build": {
+    "appId": "it.antoniozarrilli.brain",
+    "productName": "BrAIn",
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*",
+      "node_modules/**/*",
+      "!node_modules/brain-mcp/desktop/**",
+      "!node_modules/brain-mcp/.brain/**",
+      "!node_modules/brain-mcp/.mcp.json",
+      "!node_modules/brain-mcp/CLAUDE.md",
+      "!node_modules/brain-mcp/*.bat",
+      "!node_modules/brain-mcp/install.sh",
+      "!node_modules/brain-mcp/install.command",
+      "!node_modules/brain-mcp/README.md",
+      "!node_modules/brain-mcp/screenshot.md",
+      "!node_modules/brain-mcp/screenshots/**",
+      "!node_modules/brain-mcp/src/**",
+      "!node_modules/brain-mcp/tsconfig.json",
+      "!node_modules/brain-mcp/.gitignore",
+      "!node_modules/brain-mcp/dist/**/*.test.js",
+      "!node_modules/brain-mcp/dist/**/*.test.d.ts"
+    ],
+    "mac": {
+      "target": ["zip"],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}

@@ -1,17 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 
-/** Where a known client keeps its plain-language project instructions, if it has one scoped to
- *  a project at all — claude-desktop's config is one file for the whole machine, not per-project,
- *  so there's nothing to write there. */
+/** Where a known client keeps its plain-language project instructions. claude-desktop's config is
+ *  one file for the whole machine, not per-project, so there's nothing to write there; every other
+ *  client — including ones with no dedicated convention (local models) — falls back to AGENTS.md,
+ *  the emerging cross-tool convention, so every AI gets told to use the MCP tools, not just Claude. */
 export function instructionsPathForClient(client: string, projectRoot: string): string | undefined {
   switch (client) {
     case "claude-code":
       return path.join(projectRoot, "CLAUDE.md");
     case "cursor":
       return path.join(projectRoot, ".cursorrules");
-    default:
+    case "gemini":
+      return path.join(projectRoot, "GEMINI.md");
+    case "claude-desktop":
       return undefined;
+    default:
+      return path.join(projectRoot, "AGENTS.md");
   }
 }
 

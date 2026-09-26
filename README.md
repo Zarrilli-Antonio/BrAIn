@@ -21,13 +21,29 @@ git clone <this repo> BrAIn
 cd BrAIn
 ```
 
+Two ways to set it up from here — pick one. Both end up in the same place (a project with `.brain/profile.json`, MCP registered, server running); only how you get there differs.
+
+### Option A: the desktop app (no terminal, after this)
+
+A real double-clickable app: pick a project folder with a native folder picker, choose dev/notes and which AI, and BrAIn is set up and running — no commands to remember.
+
+```
+cd desktop
+npm install
+npm start          # dev: builds + launches it
+npm run dist:mac    # or: packages release/BrAIn-<version>-mac.zip, unzip and double-click anywhere
+```
+
+Unsigned (no Apple Developer Program account) — first launch of a downloaded copy may show the standard "Apple could not verify..." Gatekeeper warning, right-click → Open once to clear it. See [`desktop/README.md`](desktop/README.md) for details and how each wizard step maps to what's described below.
+
+### Option B: the terminal
+
 **Windows:** double-click **`Install BrAIn.bat`**.
-**macOS:** double-click **`install.command`**.
-**Linux, or if you'd rather use a terminal on macOS:** run **`./install.sh`**.
+**macOS/Linux:** run **`./install.sh`**.
 
 Either one installs everything, builds it, and makes the `brain` command available everywhere on your machine — on macOS/Linux it also adds `brain` to your shell's `PATH` (`~/.zshrc`/`~/.bashrc`) if it isn't there already. This step is generic — the same `brain` command works on any project; which **profile** a given project uses is chosen per-project (below), not here.
 
-It also drops a drag-anywhere launcher right into this folder (`start-brain.command` on macOS, `start-brain.sh` on Linux, `Start BrAIn.bat` on Windows) — the simplest way to use BrAIn on a project: drag that one file into the project's folder and double-click it there (Linux: run it from a terminal instead — `.command` only means anything to Finder). First time in a new folder it asks which profile that project is for (dev or notes — more on that below, under "Browse it yourself"); after that it just opens the browser. It's a plain template, not tied to this specific project — copy it as many times as you like.
+It also drops a drag-anywhere launcher right into this folder (`start-brain.sh` on macOS/Linux, `Start BrAIn.bat` on Windows) — the simplest way to use BrAIn on a project: drag that one file into the project's folder, then run it there (Windows: double-click; macOS/Linux: `./start-brain.sh` from a terminal). First time in a new folder it asks which profile that project is for (dev or notes — more on that below, under "Browse it yourself"); after that it just opens the browser. It's a plain template, not tied to this specific project — copy it as many times as you like.
 
 If you'd rather see what's happening, or you're on something else entirely:
 
@@ -44,11 +60,6 @@ npm link
 Your terminal's `PATH` doesn't include npm's global folder yet — `Install BrAIn.bat`/`install.sh` fix this automatically. Doing it by hand: Windows — `setx PATH "%PATH%;%APPDATA%\npm"`; macOS/Linux — add `export PATH="$PATH:$(npm config get prefix)/bin"` to your shell's rc file (`~/.zshrc` or `~/.bashrc`). Either way, open a **new** terminal afterward.
 </details>
 
-<details><summary>macOS says it "cannot check ... for malicious software" when you open install.command or start-brain.command?</summary>
-
-That's Gatekeeper's standard one-time warning for any script that isn't signed with a paid Apple Developer certificate — it means unsigned, not unsafe, and every unsigned `.command`/`.app` you run outside the App Store hits it once. `--write-launcher` already clears this automatically for `start-brain.command` when it can (a no-op if there was nothing to clear); if you still hit it — often because the repo was downloaded as a zip from a browser rather than `git clone`d — **Control-click (or right-click) the file → Open**, then confirm in the dialog. That's a one-time approval for that file; a plain double-click afterward works normally. By hand, from a terminal: `xattr -d com.apple.quarantine start-brain.command` (or `install.command`).
-</details>
-
 ## Connect it to your AI (MCP)
 
 This is the part that lets an AI actually use BrAIn. One command, once per project:
@@ -57,11 +68,11 @@ This is the part that lets an AI actually use BrAIn. One command, once per proje
 brain --install-mcp --client claude-code --root /path/to/your/project
 ```
 
-Swap `claude-code` for `cursor`, or `claude-desktop` (Windows). This writes (or safely merges into) that tool's configuration file — nothing else already registered there gets touched. Restart the AI tool afterward so it notices.
+Swap `claude-code` for `cursor`, `gemini`, or `claude-desktop` (Windows). This writes (or safely merges into) that tool's configuration file — nothing else already registered there gets touched. Restart the AI tool afterward so it notices.
 
-For `claude-code` and `cursor` (both project-scoped), the same command also writes — or updates in place, on a rerun — a marked block in that project's own instructions file (`CLAUDE.md` for Claude Code, `.cursorrules` for Cursor) telling the AI to actually prefer BrAIn's tools over its built-in ones. Anything else already in that file, outside the marked block, is left alone. `claude-desktop`'s config isn't project-scoped, so there's no per-project file to write this into — tell it by hand there.
+For `claude-code`, `cursor`, and `gemini` (all project-scoped), the same command also writes — or updates in place, on a rerun — a marked block in that project's own instructions file (`CLAUDE.md` for Claude Code, `.cursorrules` for Cursor, `GEMINI.md` for Gemini) telling the AI to actually prefer BrAIn's tools over its built-in ones. Anything else already in that file, outside the marked block, is left alone. `claude-desktop`'s config isn't project-scoped, so there's no per-project file to write this into — tell it by hand there. Any other client name (or a local model running through something like Ollama/LM Studio, which has no MCP config to register into at all) still gets the instructions block, written to `AGENTS.md` instead.
 
-Don't use one of those three, or you're on macOS/Linux with Claude Desktop? Point `--config` at the exact file instead of using `--client`:
+Don't use one of those, or you're on macOS/Linux with Claude Desktop? Point `--config` at the exact file instead of using `--client`:
 
 ```
 brain --install-mcp --config /path/to/mcp-config.json --root /path/to/your/project
@@ -91,7 +102,7 @@ Want more than one project available at once in the same AI tool? Run the comman
 brain --mode http --root /path/to/your/project --port 4173
 ```
 
-Then open `http://localhost:4173`. Or skip typing entirely — drag the launcher the installer already wrote (see above) into the project's folder and double-click it there, no path or flags to remember.
+Then open `http://localhost:4173`. Or skip typing entirely — drag the launcher the installer already wrote (see above) into the project's folder and run it there (Windows: double-click; macOS/Linux: `./start-brain.sh`), no path or flags to remember.
 
 First time BrAIn runs on a project — whether that's the drag-and-drop launcher, `brain --mode http`, or `brain --init` below — it asks which **profile** that project is for, and does the Claude Code MCP setup below automatically (so an AI can use it too; pass `--no-mcp` to `--init` if you don't want that):
 
