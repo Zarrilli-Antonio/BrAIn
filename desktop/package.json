@@ -1,6 +1,6 @@
 {
   "name": "brain-installer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Desktop app for BrAIn: pick a project folder, choose dev/notes, and it's set up and running.",
   "main": "dist/main.js",
@@ -42,7 +42,9 @@
       "!node_modules/brain-mcp/dist/**/*.test.d.ts"
     ],
     "mac": {
-      "target": ["zip"],
+      "target": [
+        "zip"
+      ],
       "icon": "build/icon.icns",
       "category": "public.app-category.developer-tools"
     },
