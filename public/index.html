@@ -105,6 +105,12 @@
   header { padding:12px 20px; border-bottom:1px solid var(--glass-border); display:flex; gap:12px; align-items:center; }
   .brand-mark { flex:none; }
   .brand-label { flex:none; color:var(--muted); font-size:12px; font-weight:500; white-space:nowrap; }
+  .port-badge {
+    flex:none; background:#000; border:1px solid var(--glass-border); color:var(--muted);
+    font-family:ui-monospace,monospace; font-size:11px; padding:4px 8px; border-radius:var(--radius);
+    cursor:pointer; transition:border-color .15s ease, color .15s ease;
+  }
+  .port-badge:hover { border-color:var(--green); color:var(--text); }
   .icon-btn {
     display:none; align-items:center; justify-content:center; width:40px; height:40px; flex:none;
     background:#000000; border:1px solid var(--glass-border); color:var(--text); cursor:pointer; border-radius:var(--radius);
@@ -306,6 +312,7 @@
   <header>
     <img id="brandMark" class="brand-mark" src="favicon.svg" alt="BrAIn" width="28" height="28" />
     <span id="brandLabel" class="brand-label"></span>
+    <button id="portBadge" class="port-badge" type="button" title="Click to copy this server's URL"></button>
     <button id="menuToggle" class="icon-btn" aria-label="Toggle sidebar" aria-expanded="false"></button>
     <input id="search" placeholder="Search code..." aria-label="Search code" />
   </header>

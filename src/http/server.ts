@@ -22,7 +22,10 @@ export function runHttp(root: string, port = 4173, open = false, profile: Profil
   app.use(express.json());
 
   app.get("/api/profile", (_req, res) => {
-    res.json({ profile, projectName: path.basename(root) });
+    // `root` (the full absolute path, not just its basename) lets a caller that only has a folder
+    // path — e.g. brain-docgen's desktop app, probing candidate ports to find which one is serving
+    // a given project — confirm an exact match instead of guessing from the name alone.
+    res.json({ profile, projectName: path.basename(root), root });
   });
 
   const sseClients = new Set<express.Response>();

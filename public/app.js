@@ -14,6 +14,38 @@ const ICON_MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
 menuToggle.innerHTML = ICON_MENU;
 
+// The port BrAIn actually bound to isn't fixed (EADDRINUSE retries bump it) — showing it copyable
+// means it can be pasted straight into anything that needs it (brain-docgen's own "BrAIn server"
+// field, a curl command, another tool's config) instead of guessing or re-deriving it by hand.
+const portBadge = document.getElementById("portBadge");
+portBadge.textContent = location.host;
+portBadge.onclick = async () => {
+  const url = `${location.protocol}//${location.host}`;
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(url);
+    copied = true;
+  } catch {
+    // Clipboard API blocked (permission denied, older browser, non-Electron embedded webview) —
+    // fall back to the pre-Clipboard-API trick: a temporary offscreen textarea, select it, copy.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      copied = document.execCommand("copy");
+      ta.remove();
+    } catch {
+      // Both failed — the badge still shows the value in plain text, so it's readable by hand.
+    }
+  }
+  const prev = portBadge.textContent;
+  portBadge.textContent = copied ? "Copied!" : url;
+  setTimeout(() => (portBadge.textContent = prev), 1200);
+};
+
 function openDrawer() {
   document.getElementById("tree").classList.add("open");
   scrimEl.classList.add("open");
